@@ -1,8 +1,0 @@
-node_modules/
-dist/
-.env
-.DS_Store
-*.log
-Study_Plan.apk
-StudyTracker_Pro/assets/teachers/*
-!StudyTracker_Pro/assets/teachers/.gitkeep
