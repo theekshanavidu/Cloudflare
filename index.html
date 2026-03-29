@@ -5,19 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Maintenance - Study Plan</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px; background: #121212; color: white; }
-        .btn { background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 20px; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            text-align: center; 
+            padding: 50px; 
+            background: #121212; 
+            color: white; 
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 80vh;
+        }
+        .btn { 
+            background: #007bff; 
+            color: white; 
+            padding: 12px 25px; 
+            text-decoration: none; 
+            border-radius: 8px; 
+            display: inline-block; 
+            margin-top: 20px;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        p { color: #ccc; }
     </style>
 </head>
 <body>
-    <h1>🔧 පද්ධතිය නඩත්තු වෙමින් පවතී (Under Maintenance)</h1>
+    <h1>🔧 පද්ධතිය නඩත්තු වෙමින් පවතී</h1>
+    <h3>(Under Maintenance)</h3>
     <p>අපගේ වෙබ් අඩවිය යාවත්කාලීන කරමින් පවතින බැවින්, කරුණාකර පහත තාවකාලික ලින්ක් එක භාවිතා කරන්න.</p>
+    <p>තත්පර කිහිපයකින් ඔබව ස්වයංක්‍රීයව අලුත් පිටුවට යොමු කරනු ඇත...</p>
     
-    <a href="ඔබේ_අලුත්_ලින්ක්_එක" class="btn">අලුත් ලින්ක් එකට පිවිසෙන්න</a>
+    <div>
+        <a href="https://theekshanavidu.github.io/Study-test/" class="btn">අලුත් ලින්ක් එකට පිවිසෙන්න</a>
+    </div>
 
     <script>
-        // ස්වයංක්‍රීයව අලුත් ලින්ක් එකට යවන්න (Redirect)
-        // setTimeout(() => { window.location.href = "ඔබේ_අලුත්_ලින්ක්_එක"; }, 3000);
+        // තත්පර 3කට පසු ස්වයංක්‍රීයව අලුත් ලින්ක් එකට යොමු කරයි (Redirect)
+        setTimeout(() => { 
+            window.location.href = "https://theekshanavidu.github.io/Study-test/"; 
+        }, 3000);
     </script>
 </body>
 </html>
