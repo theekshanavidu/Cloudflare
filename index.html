@@ -1,17 +1,69 @@
 <!DOCTYPE html>
-<html>
+<html lang="si">
 <head>
     <meta charset="UTF-8">
-    <title>Redirecting...</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Updating - Study Plan</title>
+    
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+
     <script>
-        // පරණ index.html එකේ cache එක මඟ හැරීමට 
-        // අලුත් file එකක් (maintenance.html) වෙත යොමු කරයි.
-        // මෙහිදී අගට අහඹු අංකයක් (Timestamp) එකතු කරන නිසා 
-        // කිසිසේත්ම පරණ cache එක වැඩ කරන්නේ නැත.
-        window.location.replace("maintenance.html?v=" + Date.now());
+        // 1. Vite සර්විස් වර්කර් එක වහාම අයින් කිරීම (Force Kill)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister().then(function() {
+                        console.log('Old Service Worker cleared');
+                        // එක පාරක් බලෙන්ම refresh කරලා අලුත් පේජ් එක ගන්නවා
+                        window.location.reload(true);
+                    });
+                }
+            });
+        }
+
+        // 2. Cache Storage එක සම්පූර්ණයෙන්ම හිස් කිරීම
+        if ('caches' in window) {
+            caches.keys().then(function(names) {
+                for (let name of names) caches.delete(name);
+            });
+        }
     </script>
+
+    <style>
+        body { 
+            background: #0f172a; color: white; font-family: 'Segoe UI', sans-serif; 
+            display: flex; align-items: center; justify-content: center; 
+            height: 100vh; margin: 0; text-align: center;
+        }
+        .container {
+            padding: 40px; border-radius: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 500px;
+        }
+        .btn {
+            background: #2563eb; color: white; padding: 12px 24px;
+            text-decoration: none; border-radius: 10px; font-weight: bold;
+            display: inline-block; margin-top: 20px; transition: 0.3s;
+        }
+        .btn:hover { background: #1d4ed8; transform: translateY(-2px); }
+    </style>
 </head>
 <body>
-    <p style="text-align:center; margin-top:50px;">Loading safe version...</p>
+
+    <div class="container">
+        <h1>🔧 පද්ධතිය යාවත්කාලීන වේ</h1>
+        <p>අපගේ සේවාදායකයන් නඩත්තු කරමින් පවතින බැවින්, කරුණාකර අපගේ නව සබැඳිය භාවිතා කරන්න.</p>
+        
+        <a href="https://theekshanavidu.github.io/Study-test/" class="btn">නව වෙබ් අඩවියට පිවිසෙන්න</a>
+        
+        <p style="font-size: 12px; color: #64748b; margin-top: 20px;">
+            පරණ පද්ධති මතකය (Cache) ඉවත් කරන ලදී.
+        </p>
+    </div>
+
 </body>
 </html>
