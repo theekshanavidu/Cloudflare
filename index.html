@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    
-    <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Updating - Study Plan</title>
@@ -77,12 +75,28 @@
         <a href="https://theekshanavidu.github.io/Study-test/" class="btn">Go to Study Plan</a>
 
         <div class="loader">
-            Redirecting in 10 seconds...
+            Cleaning cache and redirecting...
         </div>
     </div>
 
     <script>
-        // Redirect logic
+        // පරණ Service Workers තිබේ නම් ඒවා ඉවත් කිරීම
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister();
+                }
+            });
+        }
+
+        // බ්‍රවුසර් Cache එක ඉවත් කිරීම
+        if ('caches' in window) {
+            caches.keys().then(function(names) {
+                for (let name of names) caches.delete(name);
+            });
+        }
+
+        // Redirect logic: තත්පර 10කින් අලුත් පේජ් එකට යොමු කරයි
         setTimeout(() => {
             window.location.href = "https://theekshanavidu.github.io/Study-test/";
         }, 10000);
