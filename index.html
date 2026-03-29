@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Redirecting...</title>
+    <script>
+        // පරණ index.html එකේ cache එක මඟ හැරීමට 
+        // අලුත් file එකක් (maintenance.html) වෙත යොමු කරයි.
+        // මෙහිදී අගට අහඹු අංකයක් (Timestamp) එකතු කරන නිසා 
+        // කිසිසේත්ම පරණ cache එක වැඩ කරන්නේ නැත.
+        window.location.replace("maintenance.html?v=" + Date.now());
+    </script>
+</head>
+<body>
+    <p style="text-align:center; margin-top:50px;">Loading safe version...</p>
+</body>
+</html>
