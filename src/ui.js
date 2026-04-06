@@ -1444,19 +1444,18 @@ export function renderSubjects(navigate) {
   const TEACHERS = [
     { id: 'maths', name: 'Ruwan Darshana', subject: 'Combined Maths', img: 'https://api.combinedmaths.lk/files-public/profiles/281124/1862199793225306112.jpg', color: 'indigo' },
     { id: 'physics', name: 'Anuradha Perera', subject: 'Physics', img: 'https://static.indeepa.lk/lecturer/7/en/652248466c448.jpg', color: 'cyan' },
-    { id: 'chemistry', name: 'Amila Dasanayake', subject: 'Chemistry', img: 'https://static.indeepa.lk/lecturer/6/en/6522475ddf2bf.jpg', color: 'emerald' },
-    { id: 'physics-nilantha', name: 'Nilantha Jayasooriya', subject: 'Physics', img: 'https://susipvan.lk/img/teachers/2/Nilantha-Jayasooriya.jpg', color: 'rose' }
+    { id: 'chemistry', name: 'Amila Dasanayake', subject: 'Chemistry', img: 'https://static.indeepa.lk/lecturer/6/en/6522475ddf2bf.jpg', color: 'emerald' }
   ];
   appContainer.innerHTML = `
         <div class="max-w-6xl mx-auto pt-8">
             <h2 class="text-3xl font-bold text-[var(--text-primary)] mb-8">Lecture Hall 📚</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 justify-center">
                 ${TEACHERS.map(t => `
-                    <div class="smart-card p-0 overflow-hidden cursor-pointer group" onclick="navigateTo('/recording/${t.id}')">
-                        <div class="h-48 overflow-hidden"><img src="${t.img}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"></div>
-                        <div class="p-6">
-                            <span class="text-xs font-bold uppercase tracking-wider text-${t.color}-400 mb-1 block">${t.subject}</span>
-                            <h3 class="text-xl font-bold text-[var(--text-primary)] group-hover:text-indigo-400 transition-colors">${t.name}</h3>
+                    <div class="smart-card p-0 overflow-hidden cursor-pointer group flex flex-col" onclick="navigateTo('/recording/${t.id}')">
+                        <div class="h-56 overflow-hidden"><img src="${t.img}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"></div>
+                        <div class="p-6 flex-1 flex flex-col justify-center text-center">
+                            <span class="text-sm font-bold uppercase tracking-wider text-${t.color}-400 mb-2 block">${t.subject}</span>
+                            <h3 class="text-2xl font-bold text-[var(--text-primary)] group-hover:text-indigo-400 transition-colors">${t.name}</h3>
                         </div>
                     </div>
                 `).join('')}
@@ -1469,8 +1468,8 @@ export function renderType(subject, navigate) {
   appContainer.innerHTML = `
         <div class="max-w-4xl mx-auto pt-12 text-center">
             <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-4 uppercase tracking-widest">${subject}</h2>
-            <div class="grid md:grid-cols-3 gap-6 mt-12">
-                ${[{ id: 'theory', icon: '📚', label: 'Theory' }, { id: 'revision', icon: '🔄', label: 'Revision' }, { id: 'paper', icon: '📝', label: 'Paper Class' }]
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-12">
+                ${[{ id: 'theory', icon: '📚', label: 'Theory' }, { id: 'revision', icon: '🔄', label: 'Revision' }, { id: 'paper', icon: '📝', label: 'Paper Class' }, { id: 'rapid', icon: '⚡', label: 'Rapid Revision' }]
       .map(i => `<div onclick="navigateTo('/recording/${subject}/${i.id}')" class="smart-card hover:border-indigo-500 cursor-pointer group"><div class="text-6xl mb-4 group-hover:scale-110 transition-transform">${i.icon}</div><h3 class="text-2xl font-bold text-[var(--text-primary)]">${i.label}</h3></div>`).join('')}
             </div>
         </div>
@@ -1478,10 +1477,13 @@ export function renderType(subject, navigate) {
 }
 
 export async function renderLessons(subject, type, navigate, user) {
+  const isRapid = type === 'rapid';
+  const gridClass = isRapid ? "grid grid-cols-1 max-w-lg mx-auto gap-4 mt-8" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
+  
   appContainer.innerHTML = `
         <div class="max-w-5xl mx-auto pt-8">
-            <h2 class="text-2xl font-bold text-[var(--text-primary)] capitalize mb-6">${subject} / ${type}</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="lesson-grid"><div class="animate-spin h-8 w-8 border-4 border-indigo-500 rounded-full border-t-transparent mx-auto"></div></div>
+            <h2 class="text-2xl font-bold text-[var(--text-primary)] capitalize mb-6">${subject} / ${type.replace('-', ' ')}</h2>
+            <div class="${gridClass}" id="lesson-grid"><div class="animate-spin h-8 w-8 border-4 border-indigo-500 rounded-full border-t-transparent mx-auto"></div></div>
         </div>
     `;
   const lessonMap = {};
@@ -1494,22 +1496,45 @@ export async function renderLessons(subject, type, navigate, user) {
   grid.innerHTML = '';
   const canEdit = (user.uid === ADMIN_UID) || (NILANTHA_MODERATORS.includes(user.uid) && subject === 'physics-nilantha'); // Simplified permission check for brevity
 
-  for (let i = 1; i <= 20; i++) {
+  const maxLessons = isRapid ? 1 : 20;
+
+  for (let i = 1; i <= maxLessons; i++) {
     const day = String(i).padStart(2, "0");
-    const title = lessonMap[day] || `Day ${day} Lesson`;
+    const defaultTitle = isRapid ? "Rapid Revision Content" : `Day ${day} Lesson`;
+    const title = lessonMap[day] || defaultTitle;
     const card = document.createElement('div');
-    card.className = "smart-card p-4 flex justify-between items-center group cursor-pointer hover:bg-[var(--glass-border)]";
-    card.innerHTML = `<div class="flex items-center gap-4" onclick="navigateTo('/recording/${subject}/${type}/lesson${day}')"><div class="w-10 h-10 rounded bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold">${day}</div><span class="font-medium text-[var(--text-primary)]">${title}</span></div>`;
+    
+    if (isRapid) {
+        card.className = "smart-card p-8 flex flex-col justify-center items-center group cursor-pointer hover:border-indigo-500 transition-colors text-center shadow-lg relative";
+        card.innerHTML = `
+            <div class="w-full" onclick="navigateTo('/recording/${subject}/${type}/lesson${day}')">
+                <div class="w-20 h-20 mx-auto rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-4xl mb-4 group-hover:scale-110 transition-transform">⚡</div>
+                <h3 class="text-2xl font-bold text-[var(--text-primary)]">${title}</h3>
+                <p class="text-sm text-[var(--text-secondary)] mt-2">Click to view content</p>
+            </div>
+        `;
+    } else {
+        card.className = "smart-card p-4 flex justify-between items-center group cursor-pointer hover:bg-[var(--glass-border)]";
+        card.innerHTML = `<div class="flex items-center gap-4" onclick="navigateTo('/recording/${subject}/${type}/lesson${day}')"><div class="w-10 h-10 rounded bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold">${day}</div><span class="font-medium text-[var(--text-primary)]">${title}</span></div>`;
+    }
+
     if (canEdit) {
       const btn = document.createElement('button');
-      btn.innerHTML = `✎`;
-      btn.className = "text-[var(--text-secondary)] hover:text-yellow-400 p-2 invisible group-hover:visible";
+      if (isRapid) {
+          btn.innerHTML = `✎ Edit Title`;
+          btn.className = "mt-6 text-indigo-400 hover:text-yellow-400 hover:bg-slate-800 p-2 px-4 font-bold bg-indigo-500/10 rounded-lg transition-colors border border-indigo-500/30";
+          card.appendChild(btn);
+      } else {
+          btn.innerHTML = `✎`;
+          btn.className = "text-[var(--text-secondary)] hover:text-yellow-400 p-2 invisible group-hover:visible";
+          card.appendChild(btn);
+      }
+      
       btn.onclick = (e) => {
         e.stopPropagation();
         const newT = prompt("Rename Lesson:", title);
         if (newT) setDoc(doc(db, "lessons", `${subject}_${type}_${day}`), { title: newT, subject, type, day, updatedAt: Date.now() }).then(() => renderLessons(subject, type, navigate, user));
       };
-      card.appendChild(btn);
     }
     grid.appendChild(card);
   }
