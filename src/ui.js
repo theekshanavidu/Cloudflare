@@ -366,7 +366,12 @@ export function renderLogin(navigate) {
 
                 <form id="login-form" class="space-y-4" action="javascript:void(0);" method="POST">
                     <input type="email" name="email" placeholder="Email Address" class="smart-input w-full" required>
-                    <input type="password" name="password" placeholder="Password" class="smart-input w-full" required autocomplete="current-password">
+                    <div class="space-y-1">
+                        <input type="password" name="password" placeholder="Password" class="smart-input w-full" required autocomplete="current-password">
+                        <div class="text-right">
+                            <button type="button" id="forgot-password-btn" class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">Forgot Password?</button>
+                        </div>
+                    </div>
                     <button type="submit" class="w-full bg-gradient-to-r from-indigo-500 to-cyan-500 text-white font-bold py-3 rounded-xl mt-4 hover:shadow-lg hover:shadow-indigo-500/30 transition-all">Sign In to Account</button>
                 </form>
 
@@ -386,9 +391,9 @@ export function renderLogin(navigate) {
                         Don't have an account? <a href="#/register" class="text-indigo-400 font-bold hover:underline">Sign up here</a>
                     </p>
                     <div class="flex justify-center gap-4 text-xs text-[var(--text-secondary)]">
-                        <a href="Privacy_Policy.html" class="hover:text-indigo-400 hover:underline">Privacy Policy</a>
+                        <a href="/Privacy_Policy.html" target="_blank" class="hover:text-indigo-400 hover:underline">Privacy Policy</a>
                         <span>&bull;</span>
-                        <a href="Terms_of_Service.html" class="hover:text-indigo-400 hover:underline">Terms of Service</a>
+                        <a href="/Terms_of_Service.html" target="_blank" class="hover:text-indigo-400 hover:underline">Terms of Service</a>
                     </div>
                 </div>
             </div>
@@ -401,6 +406,20 @@ export function renderLogin(navigate) {
       await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value);
       navigate('/home');
     } catch (err) { alert(err.message); }
+  };
+
+  document.getElementById('forgot-password-btn').onclick = async () => {
+    const emailInput = document.querySelector('#login-form input[name="email"]').value;
+    if (!emailInput) {
+        alert("Please enter your email address first.");
+        return;
+    }
+    try {
+        await sendPasswordResetEmail(auth, emailInput);
+        alert("Check Password reset link on your Email or email spam Folder");
+    } catch (err) {
+        alert(err.message);
+    }
   };
 
   document.getElementById('google-login').onclick = async () => {
@@ -479,9 +498,9 @@ export function renderRegister(navigate) {
                 <div class="text-center space-y-4 pt-4 border-t border-[var(--glass-border)]">
                     <p class="text-sm text-[var(--text-secondary)]">Already have an account? <a href="#/login" class="text-indigo-400 font-bold hover:underline">Login here</a></p>
                     <div class="flex justify-center gap-4 text-xs text-[var(--text-secondary)]">
-                        <a href="Privacy_Policy.html" class="hover:text-indigo-400 hover:underline">Privacy Policy</a>
+                        <a href="/Privacy_Policy.html" target="_blank" class="hover:text-indigo-400 hover:underline">Privacy Policy</a>
                         <span>&bull;</span>
-                        <a href="Terms_of_Service.html" class="hover:text-indigo-400 hover:underline">Terms of Service</a>
+                        <a href="/Terms_of_Service.html" target="_blank" class="hover:text-indigo-400 hover:underline">Terms of Service</a>
                     </div>
                 </div>
              </div>
