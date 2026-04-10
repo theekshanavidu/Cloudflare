@@ -7,11 +7,13 @@ let currentUser = null;
 
 // --- Router System ---
 function navigateTo(path) {
-    window.location.hash = path;
+    if (window.location.pathname === path) return;
+    window.history.pushState({}, '', path);
+    router();
 }
 
 async function router() {
-    const path = window.location.hash.slice(1) || '/';
+    const path = window.location.pathname === '/' ? '/home' : window.location.pathname;
     console.log(`Navigating to: ${path}`);
 
     // Add smooth transition effect
@@ -98,7 +100,7 @@ function animatePageIn() {
 // --- Service Worker & Push Permissions ---
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js')
+        navigator.serviceWorker.register('/sw.js')
             .then(reg => console.log('SW Registered', reg))
             .catch(err => console.error('SW Register Fallback:', err));
     }
@@ -114,7 +116,7 @@ async function requestNotificationPermission() {
 }
 
 // --- Initialization ---
-window.addEventListener('hashchange', router);
+window.addEventListener('popstate', router);
 window.addEventListener('load', () => {
     initParticles();
     registerServiceWorker();
@@ -135,7 +137,7 @@ window.addEventListener('load', () => {
         }
 
         // Redirect if on root or welcome and logged in
-        if ((!window.location.hash || window.location.hash === '#/' || window.location.hash === '#/welcome') && currentUser) {
+        if ((!window.location.pathname || window.location.pathname === '/' || window.location.pathname === '/welcome') && currentUser) {
             navigateTo('/home');
         } else {
             router();

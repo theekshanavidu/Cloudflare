@@ -67,28 +67,7 @@ class Particle {
         if (this.x < -50) this.x = bounds.width + 50;
         if (this.x > bounds.width + 50) this.x = -50;
 
-        // Optimized Soft Collision detection
-        for (let j = index + 1; j < particles.length; j++) {
-            let p2 = particles[j];
-            let dx = this.x - p2.x;
-            let dy = this.y - p2.y;
-            let distSq = dx * dx + dy * dy;
-            let minDist = this.radius + p2.radius + 8; // Extra padding for organized spacing
-
-            if (distSq < minDist * minDist) {
-                let distance = Math.sqrt(distSq);
-                // Gentle push mathematically
-                let force = (minDist - distance) * 0.015;
-                let ax = dx * force;
-                let ay = dy * force;
-                
-                this.velocity.x += ax;
-                this.velocity.y += ay;
-                p2.velocity.x -= ax;
-                p2.velocity.y -= ay;
-            }
-        }
-
+        // Apply mouse interaction but no heavy N-squared collision logic to keep performance overhead minimal
         this.applyMouse(mouse);
     }
 
@@ -142,13 +121,8 @@ class Particle {
 
         ctx.strokeStyle = this.color;
         
-        // Disable Expensive Glow Effects for performance unless Z is close and device is high-end
-        if (!isLowPerformance && !isMobile && this.z > 0.8) {
-            ctx.shadowColor = this.color;
-            ctx.shadowBlur = 8 * scale;
-        } else {
-            ctx.shadowBlur = 0;
-        }
+        // Completely disable Expensive Glow Effects for PC performance optimizations
+        ctx.shadowBlur = 0;
 
         ctx.fillStyle = this.color; 
         ctx.lineWidth = 1.5 * scale;
@@ -219,11 +193,32 @@ export function initParticles() {
     let isLowPerformance = window.innerWidth < 1024; // tablets/low end
     let particleCount = isMobile ? 32 : chars.length; // Use only 32 elements on mobile
 
-    let state = 'sphere'; 
-    let morphInterval = 14000; // Soft 14-second transition delay
+    let state = 'table'; 
+    let morphInterval = 20000; // Longer delay in stable table form
     let lastMorphTime = Date.now();
     let sphereRotationX = 0;
     let sphereRotationY = 0;
+
+    // Periodic table structure map
+    function getElementPos(atomicNum) {
+        if (atomicNum === 1) return {r:0, c:0};
+        if (atomicNum === 2) return {r:0, c:17};
+        if (atomicNum >= 3 && atomicNum <= 4) return {r:1, c:atomicNum-3};
+        if (atomicNum >= 5 && atomicNum <= 10) return {r:1, c:atomicNum-5+12};
+        if (atomicNum >= 11 && atomicNum <= 12) return {r:2, c:atomicNum-11};
+        if (atomicNum >= 13 && atomicNum <= 18) return {r:2, c:atomicNum-13+12};
+        if (atomicNum >= 19 && atomicNum <= 36) return {r:3, c:atomicNum-19};
+        if (atomicNum >= 37 && atomicNum <= 54) return {r:4, c:atomicNum-37};
+        if (atomicNum >= 55 && atomicNum <= 57) return {r:5, c:atomicNum-55}; 
+        if (atomicNum >= 72 && atomicNum <= 86) return {r:5, c:atomicNum-72+3};
+        if (atomicNum >= 87 && atomicNum <= 89) return {r:6, c:atomicNum-87}; 
+        if (atomicNum >= 104 && atomicNum <= 118) return {r:6, c:atomicNum-104+3};
+        // Lanthanides (58-71)
+        if (atomicNum >= 58 && atomicNum <= 71) return {r:8, c:atomicNum-58+3};
+        // Actinides (90-103)
+        if (atomicNum >= 90 && atomicNum <= 103) return {r:9, c:atomicNum-90+3};
+        return {r:0, c:0};
+    }
 
     let mouse = { x: null, y: null };
     let logicalBounds = { width: 0, height: 0 };
@@ -288,42 +283,28 @@ export function initParticles() {
         }
     });
 
-    function calculateSphereTargets() {
-        // Dynamic Sphere Radius calculation
-        const radius = Math.min(logicalBounds.width, logicalBounds.height) * 0.38;
-        const centerX = logicalBounds.width / 2;
-        const centerY = logicalBounds.height / 2;
+    function calculateTableTargets() {
+        const cols = 18;
+        const rows = 10;
         
-        sphereRotationX += 0.002;
-        sphereRotationY += 0.004;
+        // Compute cell sizes organically based on logical bounds to fit the whole table beautifully
+        const cellWidth = Math.min(logicalBounds.width / (cols + 4), 60); 
+        const cellHeight = cellWidth;
         
+        const tableWidth = cols * cellWidth;
+        const tableHeight = rows * cellHeight;
+        
+        // Start position to center the table on screen
+        const startX = (logicalBounds.width - tableWidth) / 2 + cellWidth / 2;
+        const startY = (logicalBounds.height - tableHeight) / 2 + cellHeight / 2;
+
         for (let i = 0; i < particles.length; i++) {
-            // Evenly distributes nodes along Golden Ratio spirals
-            const index = i + 0.5;
-            const phi = Math.acos(1 - 2 * index / particles.length);
-            const theta = Math.PI * (1 + Math.sqrt(5)) * index;
-
-            // X, Y, Z vector points
-            let x = Math.cos(theta) * Math.sin(phi);
-            let y = Math.sin(theta) * Math.sin(phi);
-            let z = Math.cos(phi);
-
-            // X Axis Twist
-            let tempY = y * Math.cos(sphereRotationX) - z * Math.sin(sphereRotationX);
-            let tempZ = y * Math.sin(sphereRotationX) + z * Math.cos(sphereRotationX);
-            y = tempY;
-            z = tempZ;
-
-            // Y Axis Twist
-            let tempX = x * Math.cos(sphereRotationY) - z * Math.sin(sphereRotationY);
-            let tempZ2 = x * Math.sin(sphereRotationY) + z * Math.cos(sphereRotationY);
-            x = tempX;
-            z = tempZ2;
-
-            // Push Target coordinates relative to layout
-            particles[i].target.x = centerX + x * radius;
-            particles[i].target.y = centerY + y * radius;
-            particles[i].target.z = z; 
+            const p = particles[i];
+            const pos = getElementPos(p.atomicNum);
+            
+            p.target.x = startX + pos.c * cellWidth;
+            p.target.y = startY + pos.r * cellHeight;
+            p.target.z = 0; // Solid flat plane
         }
     }
 
@@ -333,26 +314,25 @@ export function initParticles() {
         if (!isMobile) {
             const now = Date.now();
             if (now - lastMorphTime > morphInterval) {
-                state = state === 'flow' ? 'sphere' : 'flow';
+                state = state === 'flow' ? 'table' : 'flow';
                 lastMorphTime = now;
+                // Give 'flow' a shorter duration, and 'table' a longer one
+                morphInterval = state === 'flow' ? 8000 : 25000; 
                 
                 if (state === 'flow') {
-                    // Elegant Scatter Animation out of Globe
+                    // Gentle Drift instead of powerful scatter to conserve performance
                     particles.forEach(p => {
                         let dx = p.x - logicalBounds.width / 2;
-                        let dy = p.y - logicalBounds.height / 2;
-                        let dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                        
-                        p.velocity.x = (dx / dist) * (Math.random() * 4 + 1);
-                        p.velocity.y = (dy / dist) * (Math.random() * 4 + 1);
-                        p.velocity.z = (Math.random() - 0.5) * 3;
+                        p.velocity.x = (dx > 0 ? 1 : -1) * (Math.random() * 0.5);
+                        p.velocity.y = Math.random() * -1;
+                        p.velocity.z = (Math.random() - 0.5);
                     });
                 }
             }
 
-            if (state === 'sphere') {
-                calculateSphereTargets();
-                particles.forEach(p => p.updateSphere(mouse));
+            if (state === 'table') {
+                calculateTableTargets();
+                particles.forEach(p => p.updateSphere(mouse)); // Reuse smooth interpolation method
             } else {
                 particles.forEach((p, index) => p.updateFlow(particles, index, mouse, -0.015, logicalBounds));
             }

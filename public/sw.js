@@ -1,13 +1,8 @@
 // Service Worker for StudyTracker Pro
-const CACHE_NAME = 'studytracker-v7';
+const CACHE_NAME = 'studytracker-v8';
 const ASSETS_TO_CACHE = [
-    './',
-    './index.html',
-    './style.css',
-    './src/main.js',
-    './src/ui.js',
-    './src/firebase.js',
-    './icon.png'
+    '/',
+    '/icon.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -84,7 +79,7 @@ self.addEventListener('push', (event) => {
         icon: '/icon.png',
         badge: '/icon.png',
         data: {
-            url: data.url || '/#/home'
+            url: data.url || '/home'
         }
     };
 

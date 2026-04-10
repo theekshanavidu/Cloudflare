@@ -13,10 +13,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="manifest" href="/manifest.json">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     
-    <link rel="icon" type="image/png" href="Icon 1.png">
+    <link rel="icon" type="image/png" href="/icon.png">
     
     <!-- Inline Critical CSS vs Deferred Styles if applicable, but style.css is local -->
     <link rel="stylesheet" href="style.css">
@@ -33,10 +34,12 @@
     <div id="root" class="flex flex-col min-h-screen">
         <!-- App Header will be rendered here -->
         <header id="app-header" class="glass-panel sticky top-0 z-50 flex justify-between items-center px-8 py-4 mb-8">
-            <h1 class="text-2xl font-outfit font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400 cursor-pointer"
-                onclick="window.location.hash='#/home'">
-                StudyTracker
-            </h1>
+            <div class="flex items-center gap-3 cursor-pointer" onclick="window.navigateTo('/home')">
+                <img src="/icon.png" alt="StudyTracker Logo" class="h-10 w-10 object-contain drop-shadow-md rounded">
+                <h1 class="text-2xl font-outfit font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400">
+                    StudyTracker
+                </h1>
+            </div>
             <div id="header-actions" class="flex gap-4 items-center">
                 <!-- Nav buttons will be injected -->
             </div>

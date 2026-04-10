@@ -278,7 +278,7 @@ export async function renderHeader(user, navigate, logout) {
   headerElement.innerHTML = `
         <div class="flex items-center gap-3 cursor-pointer" onclick="navigateTo('/home')">
             <div class="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-indigo-500/20 bg-white">
-                <img src="Icon 1.png" alt="StudyTracker Logo" class="w-full h-full object-contain p-1">
+                <img src="/icon.png" alt="StudyTracker Logo" class="w-full h-full object-contain p-1">
             </div>
             <span class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--text-primary)] to-[var(--text-secondary)] hidden sm:block">StudyTracker</span>
         </div>
@@ -357,7 +357,7 @@ export function renderLogin(navigate) {
                 <div class="text-center mb-8 mt-2">
                     <div class="flex justify-center mb-4">
                         <div class="w-16 h-16 rounded-2xl shadow-xl shadow-indigo-500/20 overflow-hidden bg-white">
-                            <img src="Icon 1.png" alt="StudyTracker Logo" class="w-full h-full object-contain p-1">
+                            <img src="/icon.png" alt="StudyTracker Logo" class="w-full h-full object-contain p-1">
                         </div>
                     </div>
                     <h1 class="text-2xl font-bold text-[var(--text-primary)] mb-2">Login to StudyTracker</h1>
@@ -439,7 +439,7 @@ export function renderRegister(navigate) {
                 <div class="text-center mb-6">
                     <div class="flex justify-center mb-4">
                         <div class="w-16 h-16 rounded-2xl shadow-xl shadow-indigo-500/20 overflow-hidden bg-white">
-                            <img src="Icon 1.png" alt="StudyTracker Logo" class="w-full h-full object-contain p-1">
+                            <img src="/icon.png" alt="StudyTracker Logo" class="w-full h-full object-contain p-1">
                         </div>
                     </div>
                     <h2 class="text-xl font-bold text-[var(--text-primary)]">Create StudyTracker Account</h2>

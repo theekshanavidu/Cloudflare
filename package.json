@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "server": "node server/upload-server.js",
-    "start": "concurrently \"npm run dev\" \"npm run server\"",
+    "start": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
