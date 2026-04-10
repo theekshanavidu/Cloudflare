@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://theekshanavidu.github.io/Study_Plan/sitemap.xml
+Sitemap: https://www.mathsrecoding.com/sitemap.xml
