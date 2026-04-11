@@ -36,6 +36,30 @@ async function getUserProfile(uid) {
   return null;
 }
 
+async function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 400; const MAX_HEIGHT = 400;
+        let width = img.width; let height = img.height;
+        if (width > height) { if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } }
+        else { if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } }
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.onerror = reject;
+    };
+    reader.onerror = reject;
+  });
+}
+
 const appContainer = document.getElementById('app-container');
 const headerElement = document.getElementById('app-header');
 
@@ -388,12 +412,12 @@ export function renderLogin(navigate) {
 
                 <div class="text-center space-y-4 pt-4 border-t border-[var(--glass-border)]">
                     <p class="text-sm text-[var(--text-secondary)]">
-                        Don't have an account? <a href="#/register" class="text-indigo-400 font-bold hover:underline">Sign up here</a>
+                        Don't have an account? <a href="javascript:void(0)" onclick="window.navigateTo('/register')" class="text-indigo-400 font-bold hover:underline">Sign up here</a>
                     </p>
                     <div class="flex justify-center gap-4 text-xs text-[var(--text-secondary)]">
-                        <a href="/Privacy_Policy.html" target="_blank" class="hover:text-indigo-400 hover:underline">Privacy Policy</a>
+                        <a href="Privacy_Policy.html" class="hover:text-indigo-400 hover:underline">Privacy Policy</a>
                         <span>&bull;</span>
-                        <a href="/Terms_of_Service.html" target="_blank" class="hover:text-indigo-400 hover:underline">Terms of Service</a>
+                        <a href="Terms_of_Service.html" class="hover:text-indigo-400 hover:underline">Terms of Service</a>
                     </div>
                 </div>
             </div>
@@ -466,8 +490,12 @@ export function renderRegister(navigate) {
                 </div>
                 <form id="register-form" class="grid gap-4" action="javascript:void(0);" method="POST">
                     <div class="grid grid-cols-2 gap-4">
-                        <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Full Name</label><input name="name" placeholder="Full Name" class="smart-input w-full" required></div>
+                        <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">First Name</label><input name="firstName" placeholder="First Name" class="smart-input w-full" required></div>
+                        <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Last Name</label><input name="lastName" placeholder="Last Name" class="smart-input w-full" required></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
                         <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Birthday</label><input name="birthday" onfocus="(this.type='date')" placeholder="Birthday" class="smart-input w-full" required></div>
+                        <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Profile Photo <span class="text-[0.6rem] opacity-50">(Opt)</span></label><input type="file" id="register-photo" accept="image/*" class="smart-input w-full text-xs p-2 bg-[var(--bg-root)]"></div>
                     </div>
                     <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Email Address</label><input name="email" type="email" placeholder="Email Address" class="smart-input w-full" required autocomplete="email"></div>
                     <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Phone Number</label><input type="tel" name="phone" pattern="[0-9]{10}" maxlength="10" placeholder="07XXXXXXXX" class="smart-input w-full" title="Please enter exactly 10 digits" required></div>
@@ -496,11 +524,11 @@ export function renderRegister(navigate) {
                 </button>
                 
                 <div class="text-center space-y-4 pt-4 border-t border-[var(--glass-border)]">
-                    <p class="text-sm text-[var(--text-secondary)]">Already have an account? <a href="#/login" class="text-indigo-400 font-bold hover:underline">Login here</a></p>
+                    <p class="text-sm text-[var(--text-secondary)]">Already have an account? <a href="javascript:void(0)" onclick="window.navigateTo('/login')" class="text-indigo-400 font-bold hover:underline">Login here</a></p>
                     <div class="flex justify-center gap-4 text-xs text-[var(--text-secondary)]">
-                        <a href="/Privacy_Policy.html" target="_blank" class="hover:text-indigo-400 hover:underline">Privacy Policy</a>
+                        <a href="Privacy_Policy.html" class="hover:text-indigo-400 hover:underline">Privacy Policy</a>
                         <span>&bull;</span>
-                        <a href="/Terms_of_Service.html" target="_blank" class="hover:text-indigo-400 hover:underline">Terms of Service</a>
+                        <a href="Terms_of_Service.html" class="hover:text-indigo-400 hover:underline">Terms of Service</a>
                     </div>
                 </div>
              </div>
@@ -510,20 +538,38 @@ export function renderRegister(navigate) {
   document.getElementById('register-form').onsubmit = async (e) => {
     e.preventDefault();
     const f = new FormData(e.target);
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Creating Account...';
     try {
+      let photoURL = null;
+      const fileInput = document.getElementById('register-photo');
+      if (fileInput && fileInput.files[0]) {
+         photoURL = await compressImage(fileInput.files[0]);
+      }
+      const displayName = f.get('firstName') + ' ' + f.get('lastName');
       const cred = await createUserWithEmailAndPassword(auth, f.get('email'), f.get('password'));
-      await updateProfile(cred.user, { displayName: f.get('name') });
-      await setDoc(doc(db, 'users', cred.user.uid), {
-        firstName: f.get('name'),
+      const profileUpdate = { displayName };
+      if (photoURL) profileUpdate.photoURL = photoURL;
+      await updateProfile(cred.user, profileUpdate);
+      const userDocData = {
+        firstName: f.get('firstName'),
+        lastName: f.get('lastName'),
         email: f.get('email'),
         phone: f.get('phone'),
         birthday: f.get('birthday'),
         school: f.get('school'),
         examYear: f.get('examYear'),
         createdAt: new Date().toISOString()
-      });
+      };
+      if (photoURL) userDocData.photoURL = photoURL;
+      await setDoc(doc(db, 'users', cred.user.uid), userDocData);
       navigate('/home');
-    } catch (err) { alert(err.message); }
+    } catch (err) { 
+      alert(err.message); 
+      btn.disabled = false;
+      btn.textContent = 'Create Account';
+    }
   };
 
   // Google Sign Up
@@ -924,9 +970,11 @@ export async function renderAdmin(user) {
 
   const renderTable = (users) => {
     const tbody = document.getElementById('user-table-body');
-    tbody.innerHTML = users.map(u => `
+    tbody.innerHTML = users.map(u => {
+      const displayName = [u.firstName, u.lastName].filter(Boolean).join(' ') || 'N/A';
+      return `
             <tr>
-                <td class="font-bold">${u.firstName || 'N/A'}</td>
+                <td class="font-bold">${displayName}</td>
                 <td class="text-sm text-[var(--text-secondary)]">${u.email}</td>
                 <td>${u.school || '-'}</td>
                 <td><span class="px-2 py-1 bg-indigo-500/10 text-indigo-400 rounded text-xs font-bold">${u.examYear || 'N/A'}</span></td>
@@ -934,11 +982,12 @@ export async function renderAdmin(user) {
                 <td>
                     <div class="flex gap-2">
                         <button onclick="viewUserDetail('${u.id}')" class="btn-ghost text-xs border border-[var(--glass-border)]">View</button>
-                        <button onclick="openNotificationModal('${u.id}', '${(u.firstName || '').replace(/'/g, "\\'")}')" class="btn-ghost text-xs border border-[var(--glass-border)] text-indigo-400">Notify</button>
+                        <button onclick="openNotificationModal('${u.id}', '${displayName.replace(/'/g, "\\'")}')" class="btn-ghost text-xs border border-[var(--glass-border)] text-indigo-400">Notify</button>
                     </div>
                 </td>
             </tr>
-        `).join('');
+        `;
+    }).join('');
   };
 
   renderTable(allUsers);
@@ -948,7 +997,7 @@ export async function renderAdmin(user) {
     const term = document.getElementById('search-term').value.toLowerCase();
     const batch = document.getElementById('filter-batch').value;
     const filtered = allUsers.filter(u => {
-      const matchName = (u.firstName || '').toLowerCase().includes(term) || (u.email || '').toLowerCase().includes(term) || (u.school || '').toLowerCase().includes(term);
+      const matchName = (u.firstName || '').toLowerCase().includes(term) || (u.lastName || '').toLowerCase().includes(term) || (u.email || '').toLowerCase().includes(term) || (u.school || '').toLowerCase().includes(term);
       const matchBatch = batch ? u.examYear === batch : true;
       return matchName && matchBatch;
     });
@@ -966,12 +1015,14 @@ export async function renderAdmin(user) {
     const logSnap = await getDocs(logQ);
     const totalHours = logSnap.docs.reduce((a, b) => a + b.data().hours, 0);
 
+    const displayName = [u.firstName, u.lastName].filter(Boolean).join(' ') || 'User Name';
+
     showFloatingModal(`
             <div class="text-center">
                 <div class="w-20 h-20 rounded-full mx-auto bg-slate-700 mb-4 overflow-hidden border-2 border-indigo-500">
-                    <img src="${u.photoURL || 'https://ui-avatars.com/api/?name=' + u.firstName}" class="w-full h-full object-cover">
+                    <img src="${u.photoURL || 'https://ui-avatars.com/api/?name=' + displayName.replace(/ /g, '+')}" class="w-full h-full object-cover">
                 </div>
-                <h3 class="text-2xl font-bold text-[var(--text-primary)]">${u.firstName}</h3>
+                <h3 class="text-2xl font-bold text-[var(--text-primary)]">${displayName}</h3>
                 <p class="text-[var(--text-secondary)] mb-6">${u.email}</p>
                 
                 <div class="grid grid-cols-2 gap-4 mb-6 text-left bg-[var(--bg-root)] p-4 rounded-xl">
@@ -1331,14 +1382,18 @@ export async function renderProfile(user) {
 
             <form id="profile-form" class="smart-card space-y-4">
                  <div class="grid md:grid-cols-2 gap-4">
-                     <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Full Name</label><input name="firstName" value="${d.firstName || ''}" class="smart-input" required></div>
+                     <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">First Name</label><input name="firstName" value="${d.firstName || ''}" class="smart-input" required></div>
+                     <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Last Name</label><input name="lastName" value="${d.lastName || ''}" class="smart-input" required></div>
+                 </div>
+                 <div class="grid md:grid-cols-2 gap-4">
+                     <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Email <span class="text-[0.6em]">(Read-only)</span></label><input type="email" value="${user.email || d.email || ''}" class="smart-input opacity-50 cursor-not-allowed" readonly title="Email cannot be changed"></div>
                      <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Birthday</label><input name="birthday" type="date" value="${d.birthday || ''}" class="smart-input" required></div>
                  </div>
                  <div class="grid md:grid-cols-2 gap-4">
                       <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">School</label><input name="school" value="${d.school || ''}" class="smart-input" required></div>
                       <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Phone</label><input type="tel" name="phone" pattern="[0-9]{10}" maxlength="10" title="Please enter exactly 10 digits" value="${d.phone || ''}" class="smart-input" required></div>
                  </div>
-                 <button class="btn-primary w-full mt-4">Save Changes</button>
+                 <button type="submit" class="btn-primary w-full mt-4">Save Changes</button>
             </form>
         </div>
     `;
@@ -1428,15 +1483,18 @@ export async function renderProfile(user) {
     try {
       await setDoc(doc(db, 'users', user.uid), {
         firstName: f.get('firstName'),
+        lastName: f.get('lastName'),
         school: f.get('school'),
         phone: f.get('phone'),
         birthday: f.get('birthday')
       }, { merge: true });
-      await updateProfile(user, { displayName: f.get('firstName') });
+      const displayName = f.get('firstName') + ' ' + f.get('lastName');
+      await updateProfile(user, { displayName });
       
       userProfileCache[user.uid] = { 
         ...userProfileCache[user.uid], 
         firstName: f.get('firstName'),
+        lastName: f.get('lastName'),
         school: f.get('school'),
         phone: f.get('phone'),
         birthday: f.get('birthday')
