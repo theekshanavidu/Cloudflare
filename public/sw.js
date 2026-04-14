@@ -1,8 +1,9 @@
 // Service Worker for StudyTracker Pro
-const CACHE_NAME = 'studytracker-v10';
+const CACHE_NAME = 'studytracker-v11';
 const ASSETS_TO_CACHE = [
     '/',
-    '/icon.png'
+    '/icon.png',
+    '/new_year.png'
 ];
 
 self.addEventListener('install', (event) => {
