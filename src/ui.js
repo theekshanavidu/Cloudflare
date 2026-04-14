@@ -871,15 +871,15 @@ export async function renderAdmin(user) {
             
             <!-- Stats Cards -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div class="smart-card text-center">
+                <div class="smart-card text-center cursor-pointer hover:border-indigo-500 transition-colors" id="active-users-card">
                     <h3 class="text-sm font-bold text-[var(--text-secondary)] uppercase mb-2">Active Users</h3>
                     <p id="active-users-count" class="text-4xl font-bold text-indigo-400">—</p>
-                    <p class="text-xs text-[var(--text-secondary)] mt-1">Currently online</p>
+                    <p class="text-xs text-[var(--text-secondary)] mt-1">Currently online (Click to view)</p>
                 </div>
-                <div class="smart-card text-center">
+                <div class="smart-card text-center cursor-pointer hover:border-cyan-500 transition-colors" id="daily-logins-card">
                     <h3 class="text-sm font-bold text-[var(--text-secondary)] uppercase mb-2">Daily Logins</h3>
                     <p id="daily-logins-count" class="text-4xl font-bold text-cyan-400">—</p>
-                    <p class="text-xs text-[var(--text-secondary)] mt-1">Today's unique visitors</p>
+                    <p class="text-xs text-[var(--text-secondary)] mt-1">Today's unique visitors (Click to view)</p>
                 </div>
                 <div class="smart-card text-center">
                     <h3 class="text-sm font-bold text-[var(--text-secondary)] uppercase mb-2">Total Users</h3>
@@ -938,17 +938,23 @@ export async function renderAdmin(user) {
     where('date', '==', today)
   );
 
+  let currentDailyUsers = [];
+  let currentActiveUsers = [];
+
   // Real-time listener for both Daily Logins and Active Users
   try {
     onSnapshot(dailyLoginQuery, (snapshot) => {
+      currentDailyUsers = snapshot.docs.map(doc => doc.data());
+      
       // 1. Daily Logins (Unique users who had any activity today)
-      document.getElementById('daily-logins-count').textContent = snapshot.size || 0;
+      const uniqueDailyIds = new Set(currentDailyUsers.map(d => d.userId));
+      document.getElementById('daily-logins-count').textContent = uniqueDailyIds.size || 0;
 
       // 2. Active Users (Users active within last 5 minutes)
       const updateActiveCount = () => {
         const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-        const activeUsers = snapshot.docs.filter(doc => doc.data().lastActive > fiveMinutesAgo);
-        const uniqueActiveIds = new Set(activeUsers.map(doc => doc.data().userId));
+        currentActiveUsers = currentDailyUsers.filter(d => d.lastActive > fiveMinutesAgo);
+        const uniqueActiveIds = new Set(currentActiveUsers.map(d => d.userId));
         document.getElementById('active-users-count').textContent = uniqueActiveIds.size || 0;
       };
 
@@ -967,6 +973,45 @@ export async function renderAdmin(user) {
     document.getElementById('daily-logins-count').textContent = '0';
     document.getElementById('active-users-count').textContent = '0';
   }
+
+  const showUsersListModal = (title, userIds, allUsersData) => {
+      if(userIds.length === 0) {
+          showFloatingModal(`<h3 class="text-xl font-bold mb-4">${title}</h3><p class="text-sm text-[var(--text-secondary)]">No users found.</p><button onclick="closeFloatingModal()" class="btn-ghost shadow-lg mt-6 w-full">Close</button>`);
+          return;
+      }
+      
+      const listHtml = userIds.map(uid => {
+          const u = allUsersData.find(x => x.id === uid);
+          if(!u) return '';
+          const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Unknown User';
+          return `<div class="flex justify-between items-center bg-[var(--bg-root)] p-3 rounded-lg mb-2">
+                     <div><p class="font-bold text-sm">${name}</p><p class="text-xs text-[var(--text-secondary)]">${u.email}</p></div>
+                     <button onclick="viewUserDetail('${uid}')" class="btn-ghost text-xs border border-[var(--glass-border)] py-1 px-3">View</button>
+                  </div>`;
+      }).join('');
+      
+      showFloatingModal(`
+          <div class="max-h-[70vh] flex flex-col">
+              <h3 class="text-xl font-bold mb-4 text-[var(--text-primary)] border-b border-[var(--glass-border)] pb-2 flex justify-between items-center sticky top-0 bg-[var(--bg-secondary)] z-10">
+                  ${title} <span class="bg-indigo-500/20 text-indigo-400 text-xs px-2 py-1 rounded-full">${userIds.length}</span>
+              </h3>
+              <div class="overflow-y-auto flex-1 pr-2 mb-4 custom-scrollbar">
+                  ${listHtml}
+              </div>
+              <button onclick="closeFloatingModal()" class="btn-secondary w-full py-2 shadow-lg mt-2">Close</button>
+          </div>
+      `);
+  };
+
+  document.getElementById('daily-logins-card').onclick = () => {
+      const uniqueDailyIds = [...new Set(currentDailyUsers.map(d => d.userId))];
+      showUsersListModal("Today's Logins", uniqueDailyIds, allUsers);
+  };
+
+  document.getElementById('active-users-card').onclick = () => {
+      const uniqueActiveIds = [...new Set(currentActiveUsers.map(d => d.userId))];
+      showUsersListModal("Currently Online", uniqueActiveIds, allUsers);
+  };
 
   const renderTable = (users) => {
     const tbody = document.getElementById('user-table-body');
@@ -1517,16 +1562,19 @@ export async function renderProfile(user) {
 // Preserve other necessary exports (renderSubjects, renderType, etc.) simply referencing the updated styles
 
 
+import dineshImg from '../assets/teachers/Dinesh Muthugala.png';
+
 export function renderSubjects(navigate) {
   const TEACHERS = [
     { id: 'maths', name: 'Ruwan Darshana', subject: 'Combined Maths', img: 'https://api.combinedmaths.lk/files-public/profiles/281124/1862199793225306112.jpg', color: 'indigo' },
+    { id: 'biology', name: 'Dinesh Muthugala', subject: 'Biology', img: dineshImg, color: 'green' },
     { id: 'physics', name: 'Anuradha Perera', subject: 'Physics', img: 'https://static.indeepa.lk/lecturer/7/en/652248466c448.jpg', color: 'cyan' },
     { id: 'chemistry', name: 'Amila Dasanayake', subject: 'Chemistry', img: 'https://static.indeepa.lk/lecturer/6/en/6522475ddf2bf.jpg', color: 'emerald' }
   ];
   appContainer.innerHTML = `
         <div class="max-w-6xl mx-auto pt-8">
             <h2 class="text-3xl font-bold text-[var(--text-primary)] mb-8">Lecture Hall 📚</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 justify-center">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 justify-center">
                 ${TEACHERS.map(t => `
                     <div class="smart-card p-0 overflow-hidden cursor-pointer group flex flex-col" onclick="navigateTo('/recording/${t.id}')">
                         <div class="h-56 overflow-hidden"><img src="${t.img}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"></div>
@@ -1698,4 +1746,79 @@ export async function trackUserActivity(userId) {
   } catch (error) {
     console.error('Failed to track user activity:', error);
   }
+}
+
+// --- New Year Popup ---
+export function checkNewYearPopup(user) {
+    if (!user) return;
+    const today = new Date();
+    const month = today.getMonth() + 1; // 1-12
+    const date = today.getDate(); // 1-31
+    const year = today.getFullYear();
+    
+    // Check if within April 12 to April 18
+    if (month === 4 && date >= 12 && date <= 18) {
+        const storageKey = `newYearPopupIgnored_${user.uid}`;
+        const lastSeenDate = localStorage.getItem(storageKey);
+        const currentDateString = `${year}-${month}-${date}`;
+        
+        if (lastSeenDate !== currentDateString) {
+            showNewYearPopup(storageKey, currentDateString);
+        }
+    }
+}
+
+function showNewYearPopup(storageKey, currentDateString) {
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300';
+    overlay.id = 'new-year-overlay';
+    
+    // Start fireworks
+    let duration = 60 * 1000;
+    let animationEnd = Date.now() + duration;
+    let defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 101, colors: ['#26ccff', '#a25afd', '#ff5e7e', '#88ff5a', '#fcff42', '#ffa62d', '#ff36ff'] };
+    let fireworksInterval;
+
+    function stopFireworks() {
+        if (fireworksInterval) clearInterval(fireworksInterval);
+    }
+
+    if (window.confetti) {
+        function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+        fireworksInterval = setInterval(function() {
+            var timeLeft = animationEnd - Date.now();
+            if (timeLeft <= 0) { return stopFireworks(); }
+            var particleCount = 50 * (timeLeft / duration);
+            window.confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+            window.confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+        }, 250);
+    }
+
+    const modal = document.createElement('div');
+    modal.className = 'bg-[var(--bg-secondary)] border-2 border-indigo-500/50 p-6 rounded-2xl shadow-[0_0_40px_rgba(79,70,229,0.4)] w-[90%] max-w-sm mx-auto text-center transform scale-0 transition-transform duration-500 ease-out z-[102] relative';
+    
+    modal.innerHTML = `
+        <h2 class="text-[clamp(1.25rem,5vw,1.75rem)] font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-yellow-200 to-yellow-400 mb-4 drop-shadow-md pb-1">සුභම සුභ අලුත් අවුරුද්දක් වේවා!</h2>
+        <img src="/new_year.png" alt="Happy New Year" class="w-full h-auto max-h-[50vh] rounded-xl mb-6 shadow-md border border-[var(--glass-border)] object-contain bg-black/20">
+        <button id="close-ny-popup" class="btn-primary w-full py-3 shadow-lg hover:shadow-indigo-500/30 transition-all font-bold text-sm sm:text-base">Close & Celebrate</button>
+    `;
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // Animate in
+    setTimeout(() => { modal.style.transform = 'scale(1)'; }, 10);
+
+    const closePopup = () => {
+        localStorage.setItem(storageKey, currentDateString);
+        stopFireworks();
+        modal.style.transform = 'scale(0)';
+        overlay.style.opacity = '0';
+        setTimeout(() => overlay.remove(), 300);
+    };
+
+    document.getElementById('close-ny-popup').onclick = closePopup;
+    overlay.onclick = (e) => {
+        if (e.target === overlay) closePopup();
+    };
 }

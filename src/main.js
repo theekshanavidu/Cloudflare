@@ -131,6 +131,7 @@ window.addEventListener('load', () => {
         if (currentUser) {
             UI.trackUserActivity(currentUser.uid);
             UI.listenForNotifications(currentUser);
+            UI.checkNewYearPopup(currentUser);
             await requestNotificationPermission();
         } else {
             UI.listenForNotifications(null);
