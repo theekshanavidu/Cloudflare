@@ -1,5 +1,6 @@
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { auth, ADMIN_UID } from "./firebase.js";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { auth, db, ADMIN_UID } from "./firebase.js";
 import * as UI from "./ui.js";
 import { initParticles } from "./particles.js";
 
@@ -45,6 +46,28 @@ async function router() {
         if (!currentUser) {
             navigateTo('/welcome');
             return;
+        }
+
+        if (path !== '/profile') {
+            if (currentUser.uid !== ADMIN_UID) {
+                try {
+                    const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                    if (userDoc.exists()) {
+                        const d = userDoc.data();
+                        if (!d.phone || !d.school || !d.birthday || !d.firstName || !d.lastName) {
+                            alert("Please complete your profile details to continue.");
+                            navigateTo('/profile');
+                            return;
+                        }
+                    } else {
+                        alert("Please complete your profile details to continue.");
+                        navigateTo('/profile');
+                        return;
+                    }
+                } catch(e) {
+                    console.error("Profile check error:", e);
+                }
+            }
         }
 
         if (path === '/home') {

@@ -607,15 +607,6 @@ export async function renderHome(user) {
     if (userDoc.exists()) {
         const d = userDoc.data();
         if (d.dailyGoal) dailyGoal = d.dailyGoal;
-        if (!d.phone || !d.school || !d.birthday || !d.firstName) {
-            alert("Please complete your profile details to continue.");
-            if (window.navigateTo) window.navigateTo('/profile');
-            return;
-        }
-    } else {
-        alert("Please complete your profile details to continue.");
-        if (window.navigateTo) window.navigateTo('/profile');
-        return;
     }
   } catch (e) { console.error(e); }
 
@@ -1563,10 +1554,13 @@ export async function renderProfile(user) {
 
 
 import dineshImg from '../assets/teachers/Dinesh Muthugala.png';
+import monojImg from '../assets/teachers/monoj.jpg';
 
 export function renderSubjects(navigate) {
   const TEACHERS = [
     { id: 'maths', name: 'Ruwan Darshana', subject: 'Combined Maths', img: 'https://api.combinedmaths.lk/files-public/profiles/281124/1862199793225306112.jpg', color: 'indigo' },
+    { id: 'com-maths-ruwan-full', name: 'Ruwan Darshana', subject: 'Com Maths Full Syllabus 2025', img: 'https://api.combinedmaths.lk/files-public/profiles/281124/1862199793225306112.jpg', color: 'indigo' },
+    { id: 'com-maths-manoj', name: 'Manoj Solangarachchi', subject: 'Combine Maths 2025', img: monojImg, color: 'blue' },
     { id: 'biology', name: 'Dinesh Muthugala', subject: 'Biology', img: dineshImg, color: 'green' },
     { id: 'physics', name: 'Anuradha Perera', subject: 'Physics', img: 'https://static.indeepa.lk/lecturer/7/en/652248466c448.jpg', color: 'cyan' },
     { id: 'chemistry', name: 'Amila Dasanayake', subject: 'Chemistry', img: 'https://static.indeepa.lk/lecturer/6/en/6522475ddf2bf.jpg', color: 'emerald' }
@@ -1590,6 +1584,20 @@ export function renderSubjects(navigate) {
 }
 
 export function renderType(subject, navigate) {
+  if (subject === 'com-maths-manoj' || subject === 'com-maths-ruwan-full') {
+    const title = subject === 'com-maths-ruwan-full' ? 'Com Maths Full Syllabus 2025' : 'Combine Maths 2025';
+    appContainer.innerHTML = `
+        <div class="max-w-4xl mx-auto pt-12 text-center">
+            <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-4 uppercase tracking-widest">${title}</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-12 max-w-2xl mx-auto">
+                <div onclick="navigateTo('/recording/${subject}/pure-maths')" class="smart-card hover:border-indigo-500 cursor-pointer group"><div class="text-6xl mb-4 group-hover:scale-110 transition-transform">📐</div><h3 class="text-2xl font-bold text-[var(--text-primary)]">Pure Maths</h3></div>
+                <div onclick="navigateTo('/recording/${subject}/applied-maths')" class="smart-card hover:border-indigo-500 cursor-pointer group"><div class="text-6xl mb-4 group-hover:scale-110 transition-transform">⚙️</div><h3 class="text-2xl font-bold text-[var(--text-primary)]">Applied Maths</h3></div>
+            </div>
+        </div>
+    `;
+    return;
+  }
+
   appContainer.innerHTML = `
         <div class="max-w-4xl mx-auto pt-12 text-center">
             <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-4 uppercase tracking-widest">${subject}</h2>
@@ -1603,11 +1611,14 @@ export function renderType(subject, navigate) {
 
 export async function renderLessons(subject, type, navigate, user) {
   const isRapid = type === 'rapid';
+  const isUnitBased = (subject === 'com-maths-manoj' || subject === 'com-maths-ruwan-full');
+  const maxLessons = isRapid ? 1 : (isUnitBased ? 15 : 20);
+
   const gridClass = isRapid ? "grid grid-cols-1 max-w-lg mx-auto gap-4 mt-8" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
   
   appContainer.innerHTML = `
         <div class="max-w-5xl mx-auto pt-8">
-            <h2 class="text-2xl font-bold text-[var(--text-primary)] capitalize mb-6">${subject} / ${type.replace('-', ' ')}</h2>
+            <h2 class="text-2xl font-bold text-[var(--text-primary)] capitalize mb-6">${subject.replace(/-/g, ' ')} / ${type.replace('-', ' ')}</h2>
             <div class="${gridClass}" id="lesson-grid"><div class="animate-spin h-8 w-8 border-4 border-indigo-500 rounded-full border-t-transparent mx-auto"></div></div>
         </div>
     `;
@@ -1621,11 +1632,13 @@ export async function renderLessons(subject, type, navigate, user) {
   grid.innerHTML = '';
   const canEdit = (user.uid === ADMIN_UID) || (NILANTHA_MODERATORS.includes(user.uid) && subject === 'physics-nilantha'); // Simplified permission check for brevity
 
-  const maxLessons = isRapid ? 1 : 20;
-
   for (let i = 1; i <= maxLessons; i++) {
     const day = String(i).padStart(2, "0");
-    const defaultTitle = isRapid ? "Rapid Revision Content" : `Day ${day} Lesson`;
+    let defaultTitle;
+    if (isRapid) defaultTitle = "Rapid Revision Content";
+    else if (isUnitBased) defaultTitle = `Unit ${day}`;
+    else defaultTitle = `Day ${day} Lesson`;
+
     const title = lessonMap[day] || defaultTitle;
     const card = document.createElement('div');
     
