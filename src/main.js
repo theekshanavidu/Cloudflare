@@ -54,7 +54,7 @@ async function router() {
                     const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
                     if (userDoc.exists()) {
                         const d = userDoc.data();
-                        if (!d.phone || !d.school || !d.birthday || !d.firstName || !d.lastName) {
+                        if (!d.phone || !d.school || !d.birthday || !d.firstName || !d.lastName || !d.examYear || !d.email) {
                             alert("Please complete your profile details to continue.");
                             navigateTo('/profile');
                             return;

@@ -6,7 +6,11 @@ import {
   sendPasswordResetEmail,
   sendEmailVerification,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  updateEmail,
+  verifyBeforeUpdateEmail,
+  reauthenticateWithCredential,
+  EmailAuthProvider
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
   doc,
@@ -855,9 +859,14 @@ export async function renderAdmin(user) {
         <div class="max-w-7xl mx-auto pt-8">
             <div class="flex flex-col md:flex-row justify-between items-center mb-6">
                 <h2 class="text-3xl font-bold text-[var(--text-primary)]">Admin Console 🛠️</h2>
-                <button onclick="window.openBroadcastModal()" class="btn-primary flex items-center gap-2 mt-4 md:mt-0">
-                    <span>📢</span> Broadcast Message
-                </button>
+                <div class="flex gap-2 mt-4 md:mt-0">
+                    <button onclick="window.openEmailRequestsModal()" class="btn-ghost border border-[var(--glass-border)] flex items-center gap-2">
+                        <span>📧</span> Requests
+                    </button>
+                    <button onclick="window.openBroadcastModal()" class="btn-primary flex items-center gap-2">
+                        <span>📢</span> Broadcast
+                    </button>
+                </div>
             </div>
             
             <!-- Stats Cards -->
@@ -1134,6 +1143,68 @@ export async function renderAdmin(user) {
       }
     };
   };
+
+  window.openEmailRequestsModal = async () => {
+      showFloatingModal(`<h3 class="text-xl font-bold mb-4">Loading Email Requests...</h3>`);
+      
+      try {
+          const q = query(collection(db, 'emailRequests'), where('status', '==', 'pending'));
+          const snap = await getDocs(q);
+          
+          if (snap.empty) {
+              showFloatingModal(`
+                  <h3 class="text-xl font-bold text-[var(--text-primary)] mb-4">Email Requests 📧</h3>
+                  <p class="text-[var(--text-secondary)] py-8 text-center">No pending email change requests.</p>
+                  <button onclick="closeFloatingModal()" class="btn-ghost w-full">Close</button>
+              `);
+              return;
+          }
+          
+          const reqs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          
+          const listHtml = reqs.map(r => `
+              <div class="bg-[var(--bg-root)] p-4 rounded-xl border border-[var(--glass-border)] mb-3">
+                  <p class="font-bold text-sm mb-1">${r.userName || 'Unknown User'}</p>
+                  <p class="text-xs text-[var(--text-secondary)] mb-3">Current: <span class="text-[var(--text-primary)]">${r.currentEmail}</span> ➡️ New: <span class="text-indigo-400 font-bold">${r.newEmail}</span></p>
+                  <div class="flex gap-2">
+                      <button onclick="window.approveEmailReq('${r.id}')" class="btn-primary text-xs py-1 px-3 bg-emerald-500 hover:bg-emerald-600">Approve</button>
+                      <button onclick="window.rejectEmailReq('${r.id}')" class="btn-ghost text-xs py-1 px-3 text-red-400 hover:bg-red-500/10 border-none">Reject</button>
+                  </div>
+              </div>
+          `).join('');
+          
+          showFloatingModal(`
+              <div class="max-h-[70vh] flex flex-col">
+                  <h3 class="text-xl font-bold mb-4 text-[var(--text-primary)] flex justify-between items-center sticky top-0 bg-[var(--bg-secondary)] z-10 pb-2 border-b border-[var(--glass-border)]">
+                      Email Requests 📧 <span class="bg-indigo-500/20 text-indigo-400 text-xs px-2 py-1 rounded-full">${reqs.length}</span>
+                  </h3>
+                  <div class="overflow-y-auto flex-1 pr-2 mb-4 custom-scrollbar">
+                      ${listHtml}
+                  </div>
+                  <button onclick="closeFloatingModal()" class="btn-secondary w-full py-2 shadow-lg mt-2">Close</button>
+              </div>
+          `);
+      } catch (error) {
+          console.error("Error loading email requests:", error);
+          showFloatingModal(`
+              <h3 class="text-xl font-bold text-red-500 mb-4">Error</h3>
+              <p class="text-[var(--text-secondary)] mb-4">Could not load email requests. Please check Firestore security rules for 'emailRequests' collection.</p>
+              <button onclick="closeFloatingModal()" class="btn-ghost w-full">Close</button>
+          `);
+      }
+  };
+
+  window.approveEmailReq = async (id) => {
+      if(!confirm("Approve this email change request?")) return;
+      await updateDoc(doc(db, 'emailRequests', id), { status: 'approved' });
+      window.openEmailRequestsModal(); // refresh
+  };
+  
+  window.rejectEmailReq = async (id) => {
+      if(!confirm("Reject this email change request?")) return;
+      await updateDoc(doc(db, 'emailRequests', id), { status: 'rejected' });
+      window.openEmailRequestsModal(); // refresh
+  };
 }
 
 // --- Timetable (with user-specific caching) ---
@@ -1401,6 +1472,76 @@ export async function renderProfile(user) {
   const d = snap.exists() ? snap.data() : {};
   userProfileCache[user.uid] = d; // Sync cache
 
+  let currentReq = null;
+  try {
+      const reqQ = query(collection(db, 'emailRequests'), where('userId', '==', user.uid));
+      const reqSnap = await getDocs(reqQ);
+      if (!reqSnap.empty) {
+          const reqs = reqSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+          currentReq = reqs[0];
+      }
+  } catch (e) {
+      console.error("Error fetching email requests:", e);
+  }
+
+  let emailHtml = '';
+  if (currentReq) {
+      if (currentReq.status === 'pending') {
+          emailHtml = `<div>
+              <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Email</label>
+              <div class="flex gap-2">
+                  <input type="email" value="${user.email}" class="smart-input flex-1 opacity-50" readonly>
+                  <button type="button" class="btn-ghost text-xs whitespace-nowrap bg-yellow-500/10 text-yellow-500 cursor-not-allowed border-none">Pending</button>
+                  <button type="button" onclick="window.cancelEmailChange('${currentReq.id}')" class="btn-ghost text-xs px-2 text-red-400 hover:text-red-300 border-none bg-red-500/10" title="Cancel Request">✖</button>
+              </div>
+              <p class="text-[0.65rem] mt-1 text-[var(--text-secondary)]">Requested change to: ${currentReq.newEmail}</p>
+          </div>`;
+      } else if (currentReq.status === 'approved') {
+          emailHtml = `<div>
+              <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Email</label>
+              <div class="flex gap-2">
+                  <input type="email" value="${user.email}" class="smart-input flex-1 opacity-50" readonly>
+                  <button type="button" onclick="window.confirmEmailChange('${currentReq.id}', '${currentReq.newEmail}')" class="btn-primary text-xs whitespace-nowrap bg-emerald-500 hover:bg-emerald-600 border-none shadow-md">Confirm</button>
+                  <button type="button" onclick="window.cancelEmailChange('${currentReq.id}')" class="btn-ghost text-xs px-2 text-red-400 hover:text-red-300 border-none bg-red-500/10" title="Cancel Request">✖</button>
+              </div>
+              <p class="text-[0.65rem] mt-1 text-emerald-400">Approved to: ${currentReq.newEmail}</p>
+          </div>`;
+      } else if (currentReq.status === 'verification_sent') {
+          if (user.email === currentReq.newEmail) {
+              await deleteDoc(doc(db, 'emailRequests', currentReq.id));
+              await setDoc(doc(db, 'users', user.uid), { email: user.email }, { merge: true });
+              renderProfile(user);
+              return;
+          }
+          emailHtml = `<div>
+              <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Email</label>
+              <div class="flex gap-2">
+                  <input type="email" value="${user.email}" class="smart-input flex-1 opacity-50" readonly>
+                  <button type="button" class="btn-ghost text-xs whitespace-nowrap bg-blue-500/10 text-blue-500 cursor-not-allowed border-none">Sent</button>
+                  <button type="button" onclick="window.cancelEmailChange('${currentReq.id}')" class="btn-ghost text-xs px-2 text-red-400 hover:text-red-300 border-none bg-red-500/10" title="Cancel Request">✖</button>
+              </div>
+              <p class="text-[0.65rem] mt-1 text-blue-400">Please click the link sent to ${currentReq.newEmail} to verify. Refresh this page after verifying.</p>
+          </div>`;
+      } else {
+          emailHtml = `<div>
+              <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Email</label>
+              <div class="flex gap-2">
+                  <input type="email" value="${user.email}" class="smart-input flex-1 opacity-50" readonly>
+                  <button type="button" onclick="window.requestEmailChange()" class="btn-ghost text-xs whitespace-nowrap border border-[var(--glass-border)] hover:bg-[var(--glass-border)]">Change Email</button>
+              </div>
+              <p class="text-[0.65rem] mt-1 text-red-400">Previous request was rejected.</p>
+          </div>`;
+      }
+  } else {
+      emailHtml = `<div>
+          <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Email</label>
+          <div class="flex gap-2">
+              <input type="email" value="${user.email}" class="smart-input flex-1 opacity-50" readonly>
+              <button type="button" onclick="window.requestEmailChange()" class="btn-ghost text-xs whitespace-nowrap border border-[var(--glass-border)] hover:bg-[var(--glass-border)]">Change Email</button>
+          </div>
+      </div>`;
+  }
+
   appContainer.innerHTML = `
         <div class="max-w-2xl mx-auto pt-10">
             <h2 class="text-3xl font-bold text-[var(--text-primary)] mb-8">Profile Settings</h2>
@@ -1422,12 +1563,21 @@ export async function renderProfile(user) {
                      <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Last Name</label><input name="lastName" value="${d.lastName || ''}" class="smart-input" required></div>
                  </div>
                  <div class="grid md:grid-cols-2 gap-4">
-                     <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Email <span class="text-[0.6em]">(Read-only)</span></label><input type="email" value="${user.email || d.email || ''}" class="smart-input opacity-50 cursor-not-allowed" readonly title="Email cannot be changed"></div>
+                     ${emailHtml}
                      <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Birthday</label><input name="birthday" type="date" value="${d.birthday || ''}" class="smart-input" required></div>
                  </div>
                  <div class="grid md:grid-cols-2 gap-4">
                       <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">School</label><input name="school" value="${d.school || ''}" class="smart-input" required></div>
                       <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Phone</label><input type="tel" name="phone" pattern="[0-9]{10}" maxlength="10" title="Please enter exactly 10 digits" value="${d.phone || ''}" class="smart-input" required></div>
+                 </div>
+                 <div>
+                      <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">A/L Batch</label>
+                      <select name="examYear" class="smart-input w-full" required>
+                          <option value="2026 A/L" ${d.examYear === '2026 A/L' ? 'selected' : ''}>2026 A/L</option>
+                          <option value="2027 A/L" ${d.examYear === '2027 A/L' ? 'selected' : ''}>2027 A/L</option>
+                          <option value="2028 A/L" ${d.examYear === '2028 A/L' ? 'selected' : ''}>2028 A/L</option>
+                          <option value="2029 A/L" ${d.examYear === '2029 A/L' ? 'selected' : ''}>2029 A/L</option>
+                      </select>
                  </div>
                  <button type="submit" class="btn-primary w-full mt-4">Save Changes</button>
             </form>
@@ -1522,7 +1672,9 @@ export async function renderProfile(user) {
         lastName: f.get('lastName'),
         school: f.get('school'),
         phone: f.get('phone'),
-        birthday: f.get('birthday')
+        birthday: f.get('birthday'),
+        examYear: f.get('examYear'),
+        email: user.email
       }, { merge: true });
       const displayName = f.get('firstName') + ' ' + f.get('lastName');
       await updateProfile(user, { displayName });
@@ -1533,7 +1685,9 @@ export async function renderProfile(user) {
         lastName: f.get('lastName'),
         school: f.get('school'),
         phone: f.get('phone'),
-        birthday: f.get('birthday')
+        birthday: f.get('birthday'),
+        examYear: f.get('examYear'),
+        email: user.email
       };
       
       alert("Profile Updated!");
@@ -1547,6 +1701,68 @@ export async function renderProfile(user) {
         saveBtn.textContent = 'Save Changes';
       }
     }
+  };
+
+  window.requestEmailChange = async () => {
+      const newEmail = prompt("Enter the new email address you want to use:");
+      if (!newEmail) return;
+      if (newEmail === user.email) return alert("This is your current email.");
+      if (!newEmail.includes('@') || !newEmail.includes('.')) return alert("Invalid email format.");
+      
+      try {
+          await addDoc(collection(db, 'emailRequests'), {
+              userId: user.uid,
+              userName: d.firstName + ' ' + d.lastName,
+              currentEmail: user.email,
+              newEmail: newEmail,
+              status: 'pending',
+              createdAt: Date.now()
+          });
+          alert("Request submitted to Admin! You can change your email once it is approved.");
+          renderProfile(user); // refresh
+      } catch (error) {
+          alert("Failed to submit request: " + error.message);
+      }
+  };
+
+  window.confirmEmailChange = async (reqId, newEmail) => {
+      const providerId = user.providerData[0]?.providerId;
+      if (providerId === 'google.com') {
+          alert("You are logged in with Google. You cannot change your email address.");
+          return;
+      }
+
+      const pwd = prompt(`Please enter your current password to confirm changing email to: ${newEmail}`);
+      if (!pwd) return;
+
+      try {
+          const cred = EmailAuthProvider.credential(user.email, pwd);
+          await reauthenticateWithCredential(user, cred);
+          
+          await verifyBeforeUpdateEmail(user, newEmail);
+          await updateDoc(doc(db, 'emailRequests', reqId), { status: 'verification_sent' });
+          
+          alert("Firebase has sent a verification link to " + newEmail + ". Please check your inbox and click the link to confirm your new email. Once verified, your email will be updated automatically.");
+          renderProfile(user);
+      } catch (error) {
+          console.error(error);
+          if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+              alert("Incorrect password.");
+          } else {
+              alert("Failed to update email: " + error.message);
+          }
+      }
+  };
+
+  window.cancelEmailChange = async (reqId) => {
+      if (!confirm("Are you sure you want to cancel your email change request?")) return;
+      try {
+          await deleteDoc(doc(db, 'emailRequests', reqId));
+          alert("Request cancelled successfully.");
+          renderProfile(user); // refresh
+      } catch (error) {
+          alert("Failed to cancel request: " + error.message);
+      }
   };
 }
 
