@@ -434,6 +434,7 @@ export function renderLogin(navigate) {
   document.getElementById('login-form').onsubmit = async (e) => {
     e.preventDefault();
     try {
+      localStorage.setItem('pendingSessionId', Date.now().toString() + Math.random().toString());
       await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value);
       navigate('/home');
     } catch (err) { alert(err.message); }
@@ -455,6 +456,7 @@ export function renderLogin(navigate) {
 
   document.getElementById('google-login').onclick = async () => {
     try {
+      localStorage.setItem('pendingSessionId', Date.now().toString() + Math.random().toString());
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const u = result.user;
@@ -561,6 +563,7 @@ export function renderRegister(navigate) {
          photoURL = await compressImage(fileInput.files[0]);
       }
       const displayName = f.get('firstName') + ' ' + f.get('lastName');
+      localStorage.setItem('pendingSessionId', Date.now().toString() + Math.random().toString());
       const cred = await createUserWithEmailAndPassword(auth, f.get('email'), f.get('password'));
       const profileUpdate = { displayName };
       if (photoURL) profileUpdate.photoURL = photoURL;
@@ -588,6 +591,7 @@ export function renderRegister(navigate) {
   // Google Sign Up
   document.getElementById('google-signup').onclick = async () => {
     try {
+      localStorage.setItem('pendingSessionId', Date.now().toString() + Math.random().toString());
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const u = result.user;

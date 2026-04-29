@@ -1,5 +1,5 @@
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { doc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { auth, db, ADMIN_UID } from "./firebase.js";
 import * as UI from "./ui.js";
 import { initParticles } from "./particles.js";
@@ -149,19 +149,57 @@ window.addEventListener('load', () => {
     initParticles();
     registerServiceWorker();
 
+    let sessionUnsubscribe = null;
+
     onAuthStateChanged(auth, async (user) => {
         currentUser = user;
         if (currentUser && currentUser.uid === ADMIN_UID) {
             currentUser.displayName = "Admin";
         }
 
-        // Track user activity for real-time stats
+        // Track user activity and manage session
         if (currentUser) {
+            // Session Management
+            let localSessionId = localStorage.getItem('studyTrackerSessionId');
+            const pendingSessionId = localStorage.getItem('pendingSessionId');
+
+            if (pendingSessionId) {
+                localSessionId = pendingSessionId;
+                localStorage.setItem('studyTrackerSessionId', localSessionId);
+                localStorage.removeItem('pendingSessionId');
+                // Update Firestore immediately
+                updateDoc(doc(db, 'users', currentUser.uid), { sessionId: localSessionId }).catch(e=>console.log('Session update err:', e));
+            }
+
+            if (!localSessionId) {
+                localSessionId = Date.now().toString() + Math.random().toString();
+                localStorage.setItem('studyTrackerSessionId', localSessionId);
+            }
+
+            if (sessionUnsubscribe) sessionUnsubscribe();
+            sessionUnsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.sessionId && data.sessionId !== localSessionId) {
+                        alert("You have been logged out because your account was accessed from another device.\nඔබගේ ගිණුමට වෙනත් උපාංගයකින් පිවිස ඇති බැවින් ඔබව ඉවත් කරන ලදී.");
+                        signOut(auth);
+                    } else if (!data.sessionId) {
+                        updateDoc(doc(db, 'users', currentUser.uid), { sessionId: localSessionId }).catch(e=>console.log(e));
+                    }
+                }
+            });
+
             UI.trackUserActivity(currentUser.uid);
             UI.listenForNotifications(currentUser);
             UI.checkNewYearPopup(currentUser);
             await requestNotificationPermission();
         } else {
+            if (sessionUnsubscribe) {
+                sessionUnsubscribe();
+                sessionUnsubscribe = null;
+            }
+            localStorage.removeItem('studyTrackerSessionId');
+            localStorage.removeItem('pendingSessionId');
             UI.listenForNotifications(null);
         }
 
