@@ -459,9 +459,13 @@ export function renderLogin(navigate) {
       const snap = await getDoc(ref);
 
       if (!snap.exists()) {
+        const nameParts = (u.displayName || 'User').split(' ');
+        const firstName = nameParts[0] || 'User';
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
         // Create profile if doesn't exist
         await setDoc(ref, {
-          firstName: u.displayName || 'User',
+          firstName: firstName,
+          lastName: lastName,
           email: u.email,
           photoURL: u.photoURL,
           examYear: '2026 A/L',
@@ -586,9 +590,13 @@ export function renderRegister(navigate) {
       const snap = await getDoc(ref);
 
       if (!snap.exists()) {
+        const nameParts = (u.displayName || 'User').split(' ');
+        const firstName = nameParts[0] || 'User';
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
         // Create profile if doesn't exist
         await setDoc(ref, {
-          firstName: u.displayName || 'User',
+          firstName: firstName,
+          lastName: lastName,
           email: u.email,
           photoURL: u.photoURL,
           examYear: '2026 A/L',
@@ -860,6 +868,9 @@ export async function renderAdmin(user) {
             <div class="flex flex-col md:flex-row justify-between items-center mb-6">
                 <h2 class="text-3xl font-bold text-[var(--text-primary)]">Admin Console 🛠️</h2>
                 <div class="flex gap-2 mt-4 md:mt-0">
+                    <button onclick="window.fixUserNames()" class="btn-ghost border border-[var(--glass-border)] flex items-center gap-2" title="Fix First/Last Names in DB">
+                        <span>🔧</span> Fix Names
+                    </button>
                     <button onclick="window.openEmailRequestsModal()" class="btn-ghost border border-[var(--glass-border)] flex items-center gap-2">
                         <span>📧</span> Requests
                     </button>
@@ -1058,30 +1069,102 @@ export async function renderAdmin(user) {
     // Fetch logs for mini chart
     const logQ = query(collection(db, 'studyLogs'), where('userId', '==', uid));
     const logSnap = await getDocs(logQ);
-    const totalHours = logSnap.docs.reduce((a, b) => a + b.data().hours, 0);
+    const logs = logSnap.docs.map(d => d.data());
+    const totalHours = logs.reduce((a, b) => a + b.hours, 0);
 
     const displayName = [u.firstName, u.lastName].filter(Boolean).join(' ') || 'User Name';
 
+    // Prepare 7-day chart data
+    const wLabels = [];
+    const wValues = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(today.getDate() - i);
+        const ds = d.toISOString().slice(0, 10);
+        wLabels.push(d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }));
+        const entry = logs.find(x => x.date === ds);
+        wValues.push(entry ? entry.hours : 0);
+    }
+
+    // Prepare Monthly chart data
+    const mData = {};
+    logs.forEach(d => {
+        const k = d.date.slice(0, 7); // YYYY-MM
+        mData[k] = (mData[k] || 0) + d.hours;
+    });
+    const mLabels = Object.keys(mData).sort();
+    const mValues = mLabels.map(k => mData[k]);
+
     showFloatingModal(`
-            <div class="text-center">
-                <div class="w-20 h-20 rounded-full mx-auto bg-slate-700 mb-4 overflow-hidden border-2 border-indigo-500">
-                    <img src="${u.photoURL || 'https://ui-avatars.com/api/?name=' + displayName.replace(/ /g, '+')}" class="w-full h-full object-cover">
+            <div class="text-center w-full max-w-lg mx-auto">
+                <div class="flex justify-between items-start mb-4">
+                     <div class="w-16 h-16 rounded-full bg-slate-700 overflow-hidden border-2 border-indigo-500 shrink-0">
+                          <img src="${u.photoURL || 'https://ui-avatars.com/api/?name=' + displayName.replace(/ /g, '+')}" class="w-full h-full object-cover">
+                     </div>
+                     <div class="text-left ml-4 flex-1">
+                          <h3 class="text-xl font-bold text-[var(--text-primary)]">${displayName}</h3>
+                          <p class="text-sm text-[var(--text-secondary)]">${u.email}</p>
+                     </div>
                 </div>
-                <h3 class="text-2xl font-bold text-[var(--text-primary)]">${displayName}</h3>
-                <p class="text-[var(--text-secondary)] mb-6">${u.email}</p>
                 
-                <div class="grid grid-cols-2 gap-4 mb-6 text-left bg-[var(--bg-root)] p-4 rounded-xl">
-                    <div><p class="text-xs text-[var(--text-secondary)] uppercase">Batch</p><p class="font-bold">${u.examYear || '-'}</p></div>
-                    <div><p class="text-xs text-[var(--text-secondary)] uppercase">School</p><p class="font-bold">${u.school || '-'}</p></div>
-                    <div><p class="text-xs text-[var(--text-secondary)] uppercase">Phone</p><p class="font-bold">${u.phone || '-'}</p></div>
-                    <div><p class="text-xs text-[var(--text-secondary)] uppercase">Total Study</p><p class="font-bold text-indigo-400">${totalHours} Hrs</p></div>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6 text-left bg-[var(--bg-root)] p-4 rounded-xl shadow-inner text-sm">
+                    <div><p class="text-[0.65rem] text-[var(--text-secondary)] uppercase">Batch</p><p class="font-bold truncate" title="${u.examYear || '-'}">${u.examYear || '-'}</p></div>
+                    <div><p class="text-[0.65rem] text-[var(--text-secondary)] uppercase">School</p><p class="font-bold truncate" title="${u.school || '-'}">${u.school || '-'}</p></div>
+                    <div><p class="text-[0.65rem] text-[var(--text-secondary)] uppercase">Phone</p><p class="font-bold truncate" title="${u.phone || '-'}">${u.phone || '-'}</p></div>
+                    <div><p class="text-[0.65rem] text-[var(--text-secondary)] uppercase">Birthday</p><p class="font-bold truncate" title="${u.birthday || '-'}">${u.birthday || '-'}</p></div>
+                    <div><p class="text-[0.65rem] text-[var(--text-secondary)] uppercase">Joined</p><p class="font-bold truncate" title="${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}">${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}</p></div>
+                    <div><p class="text-[0.65rem] text-[var(--text-secondary)] uppercase">Total Study</p><p class="font-bold text-indigo-400">${totalHours} Hrs</p></div>
                 </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-[var(--bg-root)] p-4 rounded-xl shadow-inner">
+                        <h4 class="text-xs font-bold text-left text-[var(--text-secondary)] uppercase mb-2">Last 7 Days</h4>
+                        <div class="h-32 w-full"><canvas id="admin-user-chart-weekly"></canvas></div>
+                    </div>
+                    <div class="bg-[var(--bg-root)] p-4 rounded-xl shadow-inner">
+                        <h4 class="text-xs font-bold text-left text-[var(--text-secondary)] uppercase mb-2">Monthly</h4>
+                        <div class="h-32 w-full"><canvas id="admin-user-chart-monthly"></canvas></div>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-2 gap-4">
-                     <button onclick="closeFloatingModal()" class="btn-ghost w-full">Close</button>
+                     <button onclick="closeFloatingModal()" class="btn-ghost w-full border border-[var(--glass-border)] hover:bg-[var(--glass-border)]">Close</button>
                      <button onclick="window.deleteUser('${uid}')" class="bg-red-500/10 text-red-400 hover:bg-red-500/20 py-2 rounded-lg font-bold transition-colors">Delete User</button>
                 </div>
             </div>
         `);
+
+    setTimeout(() => {
+        const ctxW = document.getElementById('admin-user-chart-weekly');
+        if (ctxW) {
+            new Chart(ctxW.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: wLabels,
+                    datasets: [{ label: 'Hours', data: wValues, backgroundColor: '#4f46e5', borderRadius: 4 }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, grid: { color: 'rgba(125,125,125,0.1)' }, ticks: { font: { size: 10 } } }, x: { grid: { display: false }, ticks: { font: { size: 10 } } } }
+                }
+            });
+        }
+        const ctxM = document.getElementById('admin-user-chart-monthly');
+        if (ctxM) {
+            new Chart(ctxM.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: mLabels,
+                    datasets: [{ label: 'Hours', data: mValues, backgroundColor: '#06b6d4', borderRadius: 4 }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, grid: { color: 'rgba(125,125,125,0.1)' }, ticks: { font: { size: 10 } } }, x: { grid: { display: false }, ticks: { font: { size: 10 } } } }
+                }
+            });
+        }
+    }, 100);
   };
 
   window.deleteUser = async (uid) => {
@@ -1089,6 +1172,26 @@ export async function renderAdmin(user) {
       await deleteDoc(doc(db, 'users', uid));
       closeFloatingModal();
       renderAdmin(user);
+    }
+  };
+
+  window.fixUserNames = async () => {
+    if(!confirm("Are you sure you want to fix all user names where First Name contains both First and Last names?")) return;
+    let count = 0;
+    try {
+        for (const u of allUsers) {
+            if (u.firstName && u.firstName.includes(' ') && (!u.lastName || u.lastName.trim() === '')) {
+                const parts = u.firstName.trim().split(' ');
+                const fName = parts[0];
+                const lName = parts.slice(1).join(' ');
+                await setDoc(doc(db, 'users', u.id), { firstName: fName, lastName: lName }, { merge: true });
+                count++;
+            }
+        }
+        alert(count === 0 ? "No users found needing a name fix." : `Successfully fixed ${count} users!`);
+        renderAdmin(user);
+    } catch(e) {
+        alert("Failed: " + e.message);
     }
   };
 
@@ -1543,17 +1646,17 @@ export async function renderProfile(user) {
   }
 
   appContainer.innerHTML = `
-        <div class="max-w-2xl mx-auto pt-10">
-            <h2 class="text-3xl font-bold text-[var(--text-primary)] mb-8">Profile Settings</h2>
+        <div class="max-w-2xl mx-auto pt-2 md:pt-10">
+            <h2 class="text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-4 md:mb-8">Profile Settings</h2>
             
-            <div class="smart-card mb-6 flex items-center gap-6">
-                 <div class="w-24 h-24 rounded-full border-2 border-indigo-500 overflow-hidden relative group">
+            <div class="smart-card mb-4 md:mb-6 flex items-center gap-4 sm:gap-6">
+                 <div class="w-16 h-16 sm:w-24 sm:h-24 rounded-full border-2 border-indigo-500 overflow-hidden relative group shrink-0">
                     <img id="profile-preview" src="${d.photoURL || user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}`}" class="w-full h-full object-cover">
-                    <button onclick="changeAvatar()" class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white font-bold transition-opacity">Change</button>
+                    <button onclick="changeAvatar()" class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white font-bold transition-opacity text-xs sm:text-base">Change</button>
                  </div>
                  <div>
-                    <h3 class="text-xl font-bold text-[var(--text-primary)]">${d.firstName}</h3>
-                    <p class="text-[var(--text-secondary)]">Student • ${d.examYear || 'Batch N/A'}</p>
+                    <h3 class="text-lg sm:text-xl font-bold text-[var(--text-primary)]">${d.firstName}</h3>
+                    <p class="text-sm sm:text-base text-[var(--text-secondary)]">Student • ${d.examYear || 'Batch N/A'}</p>
                  </div>
             </div>
 

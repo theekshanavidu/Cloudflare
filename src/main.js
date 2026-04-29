@@ -55,12 +55,12 @@ async function router() {
                     if (userDoc.exists()) {
                         const d = userDoc.data();
                         if (!d.phone || !d.school || !d.birthday || !d.firstName || !d.lastName || !d.examYear || !d.email) {
-                            alert("Please complete your profile details to continue.");
+                            alert("Please complete your profile details to continue.\nකරුණාකර ඉදිරියට යාමට පෙර ඔබගේ ගිණුමේ විස්තර සම්පූර්ණ කරන්න.");
                             navigateTo('/profile');
                             return;
                         }
                     } else {
-                        alert("Please complete your profile details to continue.");
+                        alert("Please complete your profile details to continue.\nකරුණාකර ඉදිරියට යාමට පෙර ඔබගේ ගිණුමේ විස්තර සම්පූර්ණ කරන්න.");
                         navigateTo('/profile');
                         return;
                     }
