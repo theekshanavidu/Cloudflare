@@ -41,6 +41,11 @@ async function router() {
             animatePageIn();
             return;
         }
+        if (path === '/contact') {
+            UI.renderContact(navigateTo, currentUser);
+            animatePageIn();
+            return;
+        }
 
         // Protected Routes
         if (!currentUser) {

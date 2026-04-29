@@ -315,6 +315,7 @@ export async function renderHeader(user, navigate, logout) {
             <button class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium transition-colors" onclick="navigateTo('/home')">Dashboard</button>
             <button class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium transition-colors" onclick="navigateTo('/timetable')">Time Table</button>
             <button class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium transition-colors" onclick="navigateTo('/recordings')">Lectures</button>
+            <button class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium transition-colors" onclick="navigateTo('/contact')">Contact Us</button>
             ${user.uid === ADMIN_UID ? `<button class="text-indigo-400 hover:text-indigo-300 font-bold transition-colors" onclick="navigateTo('/adminpanel')">Admin</button>` : ''}
         </nav>
 
@@ -419,6 +420,8 @@ export function renderLogin(navigate) {
                         Don't have an account? <a href="javascript:void(0)" onclick="window.navigateTo('/register')" class="text-indigo-400 font-bold hover:underline">Sign up here</a>
                     </p>
                     <div class="flex justify-center gap-4 text-xs text-[var(--text-secondary)]">
+                        <a href="javascript:void(0)" onclick="window.navigateTo('/contact')" class="hover:text-indigo-400 hover:underline">Contact Us</a>
+                        <span>&bull;</span>
                         <a href="Privacy_Policy.html" class="hover:text-indigo-400 hover:underline">Privacy Policy</a>
                         <span>&bull;</span>
                         <a href="Terms_of_Service.html" class="hover:text-indigo-400 hover:underline">Terms of Service</a>
@@ -534,6 +537,8 @@ export function renderRegister(navigate) {
                 <div class="text-center space-y-4 pt-4 border-t border-[var(--glass-border)]">
                     <p class="text-sm text-[var(--text-secondary)]">Already have an account? <a href="javascript:void(0)" onclick="window.navigateTo('/login')" class="text-indigo-400 font-bold hover:underline">Login here</a></p>
                     <div class="flex justify-center gap-4 text-xs text-[var(--text-secondary)]">
+                        <a href="javascript:void(0)" onclick="window.navigateTo('/contact')" class="hover:text-indigo-400 hover:underline">Contact Us</a>
+                        <span>&bull;</span>
                         <a href="Privacy_Policy.html" class="hover:text-indigo-400 hover:underline">Privacy Policy</a>
                         <span>&bull;</span>
                         <a href="Terms_of_Service.html" class="hover:text-indigo-400 hover:underline">Terms of Service</a>
@@ -867,12 +872,15 @@ export async function renderAdmin(user) {
         <div class="max-w-7xl mx-auto pt-8">
             <div class="flex flex-col md:flex-row justify-between items-center mb-6">
                 <h2 class="text-3xl font-bold text-[var(--text-primary)]">Admin Console 🛠️</h2>
-                <div class="flex gap-2 mt-4 md:mt-0">
+                <div class="flex gap-2 mt-4 md:mt-0 flex-wrap justify-end">
                     <button onclick="window.fixUserNames()" class="btn-ghost border border-[var(--glass-border)] flex items-center gap-2" title="Fix First/Last Names in DB">
-                        <span>🔧</span> Fix Names
+                        <span>🔧</span> Names
                     </button>
                     <button onclick="window.openEmailRequestsModal()" class="btn-ghost border border-[var(--glass-border)] flex items-center gap-2">
                         <span>📧</span> Requests
+                    </button>
+                    <button onclick="window.openContactMessagesModal()" class="btn-ghost border border-[var(--glass-border)] flex items-center gap-2 text-cyan-400 hover:text-cyan-300">
+                        <span>💬</span> Messages
                     </button>
                     <button onclick="window.openBroadcastModal()" class="btn-primary flex items-center gap-2">
                         <span>📢</span> Broadcast
@@ -1307,6 +1315,73 @@ export async function renderAdmin(user) {
       if(!confirm("Reject this email change request?")) return;
       await updateDoc(doc(db, 'emailRequests', id), { status: 'rejected' });
       window.openEmailRequestsModal(); // refresh
+  };
+
+  // Contact Messages Admin View
+  window.openContactMessagesModal = async () => {
+      showFloatingModal(`
+          <h3 class="text-xl font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2"><span>💬</span> User Messages</h3>
+          <div id="contact-messages-container" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+              <p class="text-center text-[var(--text-secondary)]">Loading messages...</p>
+          </div>
+          <button onclick="closeFloatingModal()" class="btn-ghost shadow-lg mt-6 w-full">Close</button>
+      `);
+
+      try {
+          const q = query(collection(db, 'contactMessages'), orderBy('createdAt', 'desc'));
+          const snap = await getDocs(q);
+          const messages = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+          const container = document.getElementById('contact-messages-container');
+          if (messages.length === 0) {
+              container.innerHTML = '<p class="text-center text-[var(--text-secondary)] py-8">No contact messages found.</p>';
+              return;
+          }
+
+          container.innerHTML = messages.map(msg => {
+              // Extract digits only for wa.me link. Assume +94 if local 10 digit
+              let waNumber = msg.whatsapp.replace(/[^0-9]/g, '');
+              if (waNumber.startsWith('0') && waNumber.length === 10) {
+                  waNumber = '94' + waNumber.substring(1);
+              }
+              
+              return `
+              <div class="p-4 bg-[var(--bg-root)] border border-[var(--glass-border)] rounded-xl relative group">
+                  <div class="flex justify-between items-start mb-3">
+                      <div>
+                          <p class="font-bold text-[var(--text-primary)] text-sm flex items-center gap-2">
+                              <span>📧</span>
+                              <a href="mailto:${msg.email}" class="hover:text-indigo-400 hover:underline transition-colors">${msg.email}</a>
+                          </p>
+                          <p class="text-[0.65rem] text-[var(--text-secondary)] opacity-70 mt-1">${new Date(msg.createdAt).toLocaleString()}</p>
+                      </div>
+                      <a href="https://wa.me/${waNumber}?text=${encodeURIComponent('Hello! Replying to your message on StudyTracker Pro: ')}" target="_blank" class="bg-[#25D366]/20 text-[#25D366] px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-[#25D366] hover:text-white transition-all flex items-center gap-1.5 shadow-sm">
+                          <span>WhatsApp</span>
+                          <span>${msg.whatsapp}</span>
+                      </a>
+                  </div>
+                  <div class="text-sm text-[var(--text-primary)] whitespace-pre-wrap bg-[var(--bg-secondary)] p-3 rounded-lg border border-[var(--glass-border)] break-words">${msg.message}</div>
+                  
+                  <button onclick="deleteContactMessage('${msg.id}')" class="absolute top-2 right-2 invisible group-hover:visible bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white w-6 h-6 rounded-full flex items-center justify-center transition-colors" title="Delete Message">
+                      &times;
+                  </button>
+              </div>
+          `}).join('');
+      } catch(e) {
+          console.error(e);
+          document.getElementById('contact-messages-container').innerHTML = '<p class="text-center text-red-400 py-8">Failed to load messages.<br>Make sure you added the Firestore Rule for contactMessages.</p>';
+      }
+  };
+
+  window.deleteContactMessage = async (id) => {
+      if(!confirm('Are you sure you want to delete this message?')) return;
+      try {
+          await deleteDoc(doc(db, 'contactMessages', id));
+          window.openContactMessagesModal(); // refresh
+      } catch(e) {
+          console.error(e);
+          alert('Failed to delete message.');
+      }
   };
 }
 
@@ -2014,27 +2089,32 @@ export function updateMobileNav(currentPath) {
   const isRecordings = currentPath.startsWith('/recording') || currentPath === '/recordings';
   const isProfile = currentPath === '/profile';
   const isAdmin = currentPath === '/adminpanel';
+  const isContact = currentPath === '/contact';
 
   const nav = document.createElement('div');
   nav.id = 'mobile-nav';
   nav.className = 'mobile-nav';
   nav.innerHTML = `
-    <div class="flex justify-around items-center max-w-md mx-auto">
+    <div class="flex justify-around items-center max-w-md mx-auto px-2">
       <div class="mobile-nav-item ${isHome ? 'active' : ''}" onclick="navigateTo('/home')">
         <span class="text-2xl">🏠</span>
-        <span>Home</span>
+        <span class="text-[0.65rem] mt-1 font-medium">Home</span>
       </div>
       <div class="mobile-nav-item ${isTimetable ? 'active' : ''}" onclick="navigateTo('/timetable')">
         <span class="text-2xl">📅</span>
-        <span>Timetable</span>
+        <span class="text-[0.65rem] mt-1 font-medium">Schedule</span>
       </div>
       <div class="mobile-nav-item ${isRecordings ? 'active' : ''}" onclick="navigateTo('/recordings')">
         <span class="text-2xl">🎥</span>
-        <span>Lectures</span>
+        <span class="text-[0.65rem] mt-1 font-medium">Lectures</span>
+      </div>
+      <div class="mobile-nav-item ${isContact ? 'active' : ''}" onclick="navigateTo('/contact')">
+        <span class="text-2xl">📞</span>
+        <span class="text-[0.65rem] mt-1 font-medium">Contact</span>
       </div>
       <div class="mobile-nav-item ${isProfile || isAdmin ? 'active' : ''}" onclick="navigateTo('/profile')">
         <span class="text-2xl">👤</span>
-        <span>Profile</span>
+        <span class="text-[0.65rem] mt-1 font-medium">Profile</span>
       </div>
     </div>
   `;
@@ -2152,5 +2232,105 @@ function showNewYearPopup(storageKey, currentDateString) {
     document.getElementById('close-ny-popup').onclick = closePopup;
     overlay.onclick = (e) => {
         if (e.target === overlay) closePopup();
+    };
+}
+
+// --- Contact Us ---
+export function renderContact(navigate, user) {
+    if (user) {
+        headerElement.style.display = 'flex';
+    } else {
+        headerElement.style.display = 'none';
+    }
+
+    appContainer.innerHTML = `
+        <div class="flex min-h-[80vh] items-center justify-center p-4">
+            <div class="smart-card w-full max-w-lg bg-[var(--bg-secondary)] relative border border-indigo-500/20">
+                ${!user ? `
+                <div class="absolute top-4 left-4 z-10">
+                    <button onclick="window.navigateTo('/login')" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-1 font-medium bg-[var(--bg-root)] px-3 py-1 rounded-lg border border-[var(--glass-border)]">
+                        <span class="text-xl">&larr;</span> Back
+                    </button>
+                </div>
+                ` : ''}
+                <div class="text-center mb-6 mt-4">
+                    <div class="flex justify-center mb-4">
+                        <div class="w-16 h-16 rounded-2xl shadow-xl shadow-indigo-500/20 overflow-hidden bg-white">
+                            <img src="/icon.png" alt="StudyTracker Logo" class="w-full h-full object-contain p-1">
+                        </div>
+                    </div>
+                    <h2 class="text-2xl font-bold text-[var(--text-primary)]">Contact Us</h2>
+                    <p class="text-[var(--text-secondary)] text-sm mt-1">We are here to help you</p>
+                </div>
+                
+                <div class="space-y-6">
+                    <div class="bg-[var(--bg-root)] p-4 rounded-xl border border-[var(--glass-border)] flex items-center gap-4 hover:shadow-lg transition-all">
+                        <div class="w-12 h-12 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 text-2xl shrink-0">📧</div>
+                        <div>
+                            <p class="text-xs text-[var(--text-secondary)] uppercase font-bold tracking-wider">Email Contact</p>
+                            <a href="mailto:studytrackerproadmin@gmail.com" class="text-[var(--text-primary)] font-medium hover:text-indigo-400 transition-colors break-all">studytrackerproadmin@gmail.com</a>
+                        </div>
+                    </div>
+
+                    <div class="bg-[var(--bg-root)] p-4 rounded-xl border border-[var(--glass-border)] flex items-center gap-4 cursor-pointer hover:bg-[var(--glass-border)] hover:shadow-lg transition-all" onclick="window.open('https://t.me/StudyTrackerHelp', '_blank')">
+                        <div class="w-12 h-12 rounded-full bg-[#0088cc]/20 flex items-center justify-center text-[#0088cc] text-2xl shrink-0">
+                           <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-xs text-[var(--text-secondary)] uppercase font-bold tracking-wider">Telegram Support</p>
+                            <span class="text-[var(--text-primary)] font-medium text-[#0088cc]">@StudyTrackerHelp</span>
+                        </div>
+                    </div>
+
+                    <form id="contact-form" class="space-y-4 pt-4 border-t border-[var(--glass-border)]" action="javascript:void(0);" method="POST">
+                        <p class="text-sm text-[var(--text-secondary)] mb-2 text-center">Or send us a message directly and we will reply via WhatsApp:</p>
+                        <input type="email" name="email" placeholder="Your Email Address" class="smart-input w-full" required value="${user ? user.email : ''}" ${user ? 'readonly' : ''}>
+                        <input type="tel" name="whatsapp" placeholder="Your WhatsApp Number (e.g. 07XXXXXXXX)" class="smart-input w-full" pattern="[0-9]{10}" maxlength="10" title="Please enter exactly 10 digits" required>
+                        <textarea name="message" placeholder="Your Question or Message..." class="smart-input w-full min-h-[120px] resize-y p-3" required></textarea>
+                        <button type="submit" class="w-full bg-gradient-to-r from-indigo-500 to-cyan-500 text-white font-bold py-3 rounded-xl hover:shadow-lg hover:shadow-indigo-500/30 transition-all flex items-center justify-center gap-2">
+                            <span>Send Message</span>
+                            <span class="text-lg">✉️</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('contact-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const f = new FormData(e.target);
+        const email = f.get('email');
+        const whatsapp = f.get('whatsapp');
+        const message = f.get('message');
+        const btn = e.target.querySelector('button[type="submit"]');
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="animate-pulse">Sending...</span>';
+
+        try {
+            await addDoc(collection(db, 'contactMessages'), {
+                email,
+                whatsapp,
+                message,
+                userId: user ? user.uid : null,
+                createdAt: new Date().toISOString(),
+                status: 'unread'
+            });
+
+            alert('Your message has been sent successfully. We will contact you via WhatsApp soon!');
+            if (!user) {
+                e.target.reset();
+            } else {
+                e.target.whatsapp.value = '';
+                e.target.message.value = '';
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Failed to send message. Please try again or use Telegram/Email directly.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<span>Send Message</span><span class="text-lg">✉️</span>';
+        }
     };
 }
