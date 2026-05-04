@@ -29,6 +29,21 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { auth, db, ADMIN_UID, NILANTHA_MODERATORS } from "./firebase.js";
 
+const getLocalDateString = (d = new Date()) => {
+  const tzOffset = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - tzOffset).toISOString().slice(0, 10);
+};
+
+const formatSLTime = (timestamp) => {
+  if (!timestamp) return 'N/A';
+  return new Date(timestamp).toLocaleTimeString('en-US', {
+    timeZone: 'Asia/Colombo',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+};
+
 let userProfileCache = {}; // Global cache for user profile data (fixes Auth photoURL length limit)
 async function getUserProfile(uid) {
   if (userProfileCache[uid]) return userProfileCache[uid];
@@ -303,6 +318,14 @@ export async function renderHeader(user, navigate, logout) {
   const profile = await getUserProfile(user.uid);
   const photoURL = profile?.photoURL || user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}&background=4f46e5&color=fff`;
 
+  const path = window.location.pathname;
+  const getNavClass = (p) => {
+    const active = path === p || (p === '/recordings' && path.startsWith('/recording/'));
+    return `px-5 py-2 rounded-full font-semibold text-sm transition-all duration-300 ${active ? 'bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-md scale-105 border border-[var(--glass-border)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] hover:shadow-md'}`;
+  };
+  const adminActive = path === '/adminpanel';
+  const adminClass = `px-5 py-2 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md hover:shadow-lg font-bold text-sm transition-all duration-300 flex items-center gap-1 ${adminActive ? 'ring-2 ring-offset-2 ring-indigo-500 ring-offset-[var(--bg-root)] scale-105' : 'hover:scale-105'}`;
+
   headerElement.innerHTML = `
         <div class="flex items-center gap-3 cursor-pointer" onclick="navigateTo('/home')">
             <div class="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-indigo-500/20 bg-white">
@@ -311,12 +334,12 @@ export async function renderHeader(user, navigate, logout) {
             <span class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--text-primary)] to-[var(--text-secondary)] hidden sm:block">StudyTracker</span>
         </div>
 
-        <nav class="hidden md:flex gap-6 items-center flex-1 justify-center">
-            <button class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium transition-colors" onclick="navigateTo('/home')">Dashboard</button>
-            <button class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium transition-colors" onclick="navigateTo('/timetable')">Time Table</button>
-            <button class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium transition-colors" onclick="navigateTo('/recordings')">Lectures</button>
-            <button class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium transition-colors" onclick="navigateTo('/contact')">Contact Us</button>
-            ${user.uid === ADMIN_UID ? `<button class="text-indigo-400 hover:text-indigo-300 font-bold transition-colors" onclick="navigateTo('/adminpanel')">Admin</button>` : ''}
+        <nav class="hidden md:flex gap-1 items-center flex-1 justify-center max-w-fit mx-auto bg-[var(--bg-root)] p-1.5 rounded-full border border-[var(--glass-border)] shadow-sm">
+            <button class="${getNavClass('/home')}" onclick="navigateTo('/home')">Dashboard</button>
+            <button class="${getNavClass('/timetable')}" onclick="navigateTo('/timetable')">Time Table</button>
+            <button class="${getNavClass('/recordings')}" onclick="navigateTo('/recordings')">Lectures</button>
+            <button class="${getNavClass('/contact')}" onclick="navigateTo('/contact')">Contact Us</button>
+            ${user.uid === ADMIN_UID ? `<button class="${adminClass}" onclick="navigateTo('/adminpanel')"><span>Admin</span> <span class="text-xs">🛡️</span></button>` : ''}
         </nav>
 
         <div class="flex items-center gap-4">
@@ -737,7 +760,7 @@ export async function renderHome(user) {
     showFloatingModal(`
             <h3 class="text-xl font-bold text-[var(--text-primary)] mb-4">Log Study Session</h3>
             <form id="log-form" class="grid gap-4">
-                <input type="date" name="date" value="${new Date().toISOString().slice(0, 10)}" class="smart-input">
+                <input type="date" name="date" value="${getLocalDateString()}" class="smart-input">
                 <input type="number" name="hours" placeholder="Hours (e.g. 2.5)" step="0.1" max="24" class="smart-input" required>
                 <button class="btn-primary w-full py-3 rounded-xl">Save Entry</button>
             </form>
@@ -771,7 +794,7 @@ async function renderCharts(uid, dailyGoal, days) {
   const today = new Date();
 
   // --- Daily Goal Ring Logic ---
-  const todayStr = today.toISOString().slice(0, 10);
+  const todayStr = getLocalDateString(today);
   const todayLog = data.find(x => x.date === todayStr);
   const todayHours = todayLog ? todayLog.hours : 0;
 
@@ -793,7 +816,7 @@ async function renderCharts(uid, dailyGoal, days) {
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date();
     d.setDate(today.getDate() - i);
-    const ds = d.toISOString().slice(0, 10);
+    const ds = getLocalDateString(d);
     wLabels.push(d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }));
     const entry = data.find(x => x.date === ds);
     wValues.push(entry ? entry.hours : 0);
@@ -955,7 +978,7 @@ export async function renderAdmin(user) {
   document.getElementById('total-users-count').textContent = allUsers.length;
 
   // Track daily logins (users who logged in today)
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalDateString();
   const dailyLoginQuery = query(
     collection(db, 'userActivity'),
     where('date', '==', today)
@@ -1014,8 +1037,8 @@ export async function renderAdmin(user) {
       }).join('');
       
       showFloatingModal(`
-          <div class="max-h-[70vh] flex flex-col">
-              <h3 class="text-xl font-bold mb-4 text-[var(--text-primary)] border-b border-[var(--glass-border)] pb-2 flex justify-between items-center sticky top-0 bg-[var(--bg-secondary)] z-10">
+          <div class="max-h-[60vh] flex flex-col">
+              <h3 class="text-xl font-bold mb-4 text-[var(--text-primary)] border-b border-[var(--glass-border)] pb-2 flex justify-between items-center sticky top-0 bg-[var(--bg-secondary)] z-10 pr-10">
                   ${title} <span class="bg-indigo-500/20 text-indigo-400 text-xs px-2 py-1 rounded-full">${userIds.length}</span>
               </h3>
               <div class="overflow-y-auto flex-1 pr-2 mb-4 custom-scrollbar">
@@ -1026,9 +1049,83 @@ export async function renderAdmin(user) {
       `);
   };
 
+  window.openDailyLoginsModal = async (selectedDate) => {
+      const d = new Date();
+      d.setDate(d.getDate() - 7);
+      const minDate = getLocalDateString(d);
+      const todayDate = getLocalDateString();
+      const dateToUse = selectedDate || todayDate;
+
+      showFloatingModal(`
+          <div class="max-h-[60vh] flex flex-col">
+              <h3 class="text-xl font-bold mb-4 text-[var(--text-primary)] border-b border-[var(--glass-border)] pb-2 flex justify-between items-center sticky top-0 bg-[var(--bg-secondary)] z-10 pr-10">
+                  Daily Logins
+                  <input type="date" id="daily-login-date" class="smart-input text-sm py-1 px-2 w-auto border border-indigo-500/30" min="${minDate}" max="${todayDate}" value="${dateToUse}">
+              </h3>
+              <div id="daily-logins-list" class="overflow-y-auto flex-1 pr-2 mb-4 custom-scrollbar">
+                  <p class="text-center text-sm text-[var(--text-secondary)] py-4">Loading...</p>
+              </div>
+              <button onclick="closeFloatingModal()" class="btn-secondary w-full py-2 shadow-lg mt-2">Close</button>
+          </div>
+      `);
+
+      const loadData = async (date) => {
+          const listContainer = document.getElementById('daily-logins-list');
+          if(!listContainer) return;
+          listContainer.innerHTML = '<p class="text-center text-sm text-[var(--text-secondary)] py-4">Loading...</p>';
+          
+          try {
+              const q = query(collection(db, 'userActivity'), where('date', '==', date));
+              const snap = await getDocs(q);
+              const activities = snap.docs.map(doc => doc.data());
+              
+              if(activities.length === 0) {
+                  listContainer.innerHTML = '<p class="text-sm text-[var(--text-secondary)] text-center py-4">No logins on this date.</p>';
+                  return;
+              }
+
+              const listHtml = activities.map(act => {
+                  const u = allUsers.find(x => x.id === act.userId);
+                  if(!u) return '';
+                  const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Unknown User';
+                  
+                  let visitsHtml = '';
+                  if(act.loginTimes && act.loginTimes.length > 0) {
+                      visitsHtml = act.loginTimes.map(ts => `<span class="inline-block bg-indigo-500/10 text-indigo-400 text-[0.65rem] px-2 py-0.5 rounded mr-1 mb-1">${formatSLTime(ts)}</span>`).join('');
+                  } else if (act.lastActive) {
+                      visitsHtml = `<span class="inline-block bg-indigo-500/10 text-indigo-400 text-[0.65rem] px-2 py-0.5 rounded mr-1 mb-1">${formatSLTime(act.lastActive)}</span>`;
+                  } else {
+                      visitsHtml = '<span class="text-[0.65rem] opacity-50">Time not recorded</span>';
+                  }
+
+                  return `<div class="flex flex-col bg-[var(--bg-root)] p-3 rounded-lg mb-2">
+                             <div class="flex justify-between items-start mb-2">
+                                 <div><p class="font-bold text-sm text-[var(--text-primary)]">${name}</p><p class="text-xs text-[var(--text-secondary)]">${u.email}</p></div>
+                                 <button onclick="viewUserDetail('${act.userId}')" class="btn-ghost text-[0.65rem] border border-[var(--glass-border)] py-1 px-2">Profile</button>
+                             </div>
+                             <div class="flex flex-wrap mt-1">
+                                 <span class="text-[0.65rem] text-[var(--text-secondary)] mr-2 mt-0.5 uppercase font-bold">Visits:</span>
+                                 ${visitsHtml}
+                             </div>
+                          </div>`;
+              }).join('');
+              
+              listContainer.innerHTML = listHtml;
+          } catch(e) {
+              listContainer.innerHTML = '<p class="text-sm text-red-400 text-center py-4">Error loading data.</p>';
+          }
+      };
+
+      await loadData(dateToUse);
+
+      const dateInput = document.getElementById('daily-login-date');
+      if(dateInput) {
+          dateInput.onchange = (e) => loadData(e.target.value);
+      }
+  };
+
   document.getElementById('daily-logins-card').onclick = () => {
-      const uniqueDailyIds = [...new Set(currentDailyUsers.map(d => d.userId))];
-      showUsersListModal("Today's Logins", uniqueDailyIds, allUsers);
+      window.openDailyLoginsModal(getLocalDateString());
   };
 
   document.getElementById('active-users-card').onclick = () => {
@@ -1093,7 +1190,7 @@ export async function renderAdmin(user) {
     for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(today.getDate() - i);
-        const ds = d.toISOString().slice(0, 10);
+        const ds = getLocalDateString(d);
         wLabels.push(d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }));
         const entry = logs.find(x => x.date === ds);
         wValues.push(entry ? entry.hours : 0);
@@ -2136,14 +2233,31 @@ export async function trackUserActivity(userId) {
   }
 
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getLocalDateString();
     const activityRef = doc(db, 'userActivity', `${userId}_${today}`);
+
+    // Fetch existing first to check last active
+    const snap = await getDoc(activityRef);
+    let loginTimes = [];
+    let previousLastActive = 0;
+    
+    if (snap.exists()) {
+      const data = snap.data();
+      loginTimes = data.loginTimes || [];
+      previousLastActive = data.lastActive || 0;
+    }
+
+    // If more than 30 mins since last active, or first visit today, it's a new visit
+    if (!previousLastActive || Date.now() - previousLastActive > 30 * 60 * 1000) {
+      loginTimes.push(Date.now());
+    }
 
     // Update or create activity document
     await setDoc(activityRef, {
       userId: userId,
       date: today,
-      lastActive: Date.now()
+      lastActive: Date.now(),
+      loginTimes: loginTimes
     }, { merge: true });
 
     // Set up periodic updates (every 2 minutes while active)
