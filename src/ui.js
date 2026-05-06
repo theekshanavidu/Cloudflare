@@ -2191,7 +2191,7 @@ export function updateMobileNav(currentPath) {
   const isRecordings = currentPath.startsWith('/recording') || currentPath === '/recordings';
   const isProfile = currentPath === '/profile';
   const isAdmin = currentPath === '/adminpanel';
-  const isContact = currentPath === '/contact';
+  const isSimulation = currentPath === '/simulation' || currentPath === '/organicgame';
 
   const nav = document.createElement('div');
   nav.id = 'mobile-nav';
@@ -2206,13 +2206,13 @@ export function updateMobileNav(currentPath) {
         <span class="text-2xl">📅</span>
         <span class="text-[0.65rem] mt-1 font-medium">Schedule</span>
       </div>
+      <div class="mobile-nav-item ${isSimulation ? 'active' : ''}" onclick="navigateTo('/simulation')">
+        <span class="text-2xl">🧪</span>
+        <span class="text-[0.65rem] mt-1 font-medium">Labs</span>
+      </div>
       <div class="mobile-nav-item ${isRecordings ? 'active' : ''}" onclick="navigateTo('/recordings')">
         <span class="text-2xl">🎥</span>
         <span class="text-[0.65rem] mt-1 font-medium">Lectures</span>
-      </div>
-      <div class="mobile-nav-item ${isContact ? 'active' : ''}" onclick="navigateTo('/contact')">
-        <span class="text-2xl">📞</span>
-        <span class="text-[0.65rem] mt-1 font-medium">Contact</span>
       </div>
       <div class="mobile-nav-item ${isProfile || isAdmin ? 'active' : ''}" onclick="navigateTo('/profile')">
         <span class="text-2xl">👤</span>
