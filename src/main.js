@@ -16,6 +16,11 @@ function navigateTo(path) {
 async function router() {
     const path = window.location.pathname === '/' ? '/home' : window.location.pathname;
     console.log(`Navigating to: ${path}`);
+    
+    // Clean up chemistry game if we're navigating away
+    if (path !== '/organicgame' && window.unmountChemistryGame) {
+        window.unmountChemistryGame();
+    }
 
     // Add smooth transition effect
     const container = document.getElementById('app-container');
@@ -40,8 +45,11 @@ async function router() {
             UI.renderRegister(navigateTo);
             animatePageIn();
             return;
-        }
-        if (path === '/contact') {
+        } else if (path === '/simulation') {
+            UI.renderSimulation(navigateTo);
+            animatePageIn();
+            return;
+        } else if (path === '/contact') {
             UI.renderContact(navigateTo, currentUser);
             animatePageIn();
             return;
@@ -77,6 +85,8 @@ async function router() {
 
         if (path === '/home') {
             await UI.renderHome(currentUser);
+        } else if (path === '/organicgame') {
+            await UI.renderOrganicGame();
         } else if (path === '/profile') {
             await UI.renderProfile(currentUser);
         } else if (path === '/timetable') {

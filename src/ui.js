@@ -339,6 +339,7 @@ export async function renderHeader(user, navigate, logout) {
             <button class="${getNavClass('/timetable')}" onclick="navigateTo('/timetable')">Time Table</button>
             <button class="${getNavClass('/recordings')}" onclick="navigateTo('/recordings')">Lectures</button>
             <button class="${getNavClass('/contact')}" onclick="navigateTo('/contact')">Contact Us</button>
+            <button class="${getNavClass('/simulation')}" onclick="navigateTo('/simulation')">Simulation</button>
             ${user.uid === ADMIN_UID ? `<button class="${adminClass}" onclick="navigateTo('/adminpanel')"><span>Admin</span> <span class="text-xs">🛡️</span></button>` : ''}
         </nav>
 
@@ -2451,4 +2452,104 @@ export function renderContact(navigate, user) {
             btn.innerHTML = '<span>Send Message</span><span class="text-lg">✉️</span>';
         }
     };
+}
+
+export function renderSimulation(navigate) {
+  const appContainer = document.getElementById('app-container');
+  appContainer.innerHTML = `
+        <div class="max-w-4xl mx-auto pt-8 pb-12">
+            <div class="text-center mb-12">
+                <h1 class="text-4xl font-bold text-[var(--text-primary)] mb-4">Interactive Simulations</h1>
+                <p class="text-lg text-[var(--text-secondary)]">Choose a subject to dive into our immersive learning environments.</p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Physics Card -->
+                <div onclick="alert('ඉදිරියේදි මෙය ඔබට ලැබෙනු ඇත')" class="smart-card cursor-pointer group hover:border-blue-500 transition-all text-center p-12 flex flex-col items-center">
+                    <div class="text-8xl mb-6 group-hover:scale-110 transition-transform">⚛️</div>
+                    <h2 class="text-3xl font-bold text-[var(--text-primary)] mb-2">Physics</h2>
+                    <p class="text-[var(--text-secondary)]">Explore mechanics, waves, and quantum phenomena.</p>
+                </div>
+                
+                <!-- Chemistry Card -->
+                <div id="chemistry-card" class="smart-card cursor-pointer group hover:border-cyan-500 transition-all text-center p-12 flex flex-col items-center relative overflow-hidden">
+                    <div id="chemistry-initial">
+                        <div class="text-8xl mb-6 group-hover:scale-110 transition-transform">🧪</div>
+                        <h2 class="text-3xl font-bold text-[var(--text-primary)] mb-2">Chemistry</h2>
+                        <p class="text-[var(--text-secondary)]">Master reactions, organic conversions, and physical chemistry.</p>
+                    </div>
+                    
+                    <div id="chemistry-sub" class="absolute inset-0 bg-[var(--bg-secondary)] flex flex-col items-center justify-center translate-y-full transition-transform duration-300">
+                        <h3 class="text-2xl font-bold text-[var(--text-primary)] mb-6">Select Sub-Topic</h3>
+                        <div class="flex gap-4">
+                            <button onclick="navigateTo('/organicgame')" class="btn-primary py-3 px-6 rounded-xl flex items-center gap-2 text-lg">
+                                <span>⬡</span> Organic Chemistry
+                            </button>
+                        </div>
+                        <button id="chemistry-back" class="mt-8 text-[var(--text-secondary)] hover:text-[var(--text-primary)] underline">Back</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+  document.getElementById('chemistry-card').onclick = (e) => {
+    if (e.target.closest('#chemistry-back') || e.target.closest('button')) return;
+    document.getElementById('chemistry-sub').classList.remove('translate-y-full');
+  };
+  
+  document.getElementById('chemistry-back').onclick = (e) => {
+    e.stopPropagation();
+    document.getElementById('chemistry-sub').classList.add('translate-y-full');
+  };
+}
+
+export async function renderOrganicGame() {
+  const appContainer = document.getElementById('app-container');
+  appContainer.innerHTML = `
+    <div id="organic-game-root" style="width: 100%; height: 100%; min-height: calc(100vh - 80px);">
+        <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
+            <div class="animate-pulse text-[var(--text-primary)]">Loading Chemistry Engine...</div>
+        </div>
+    </div>
+  `;
+
+  if (window.mountChemistryGame) {
+    window.mountChemistryGame();
+    return;
+  }
+
+  try {
+    const htmlResponse = await fetch('/organic/index.html');
+    const htmlText = await htmlResponse.text();
+    
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlText, 'text/html');
+    
+    doc.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+      const href = link.getAttribute('href');
+      if (!document.querySelector(`link[href="${href}"]`)) {
+        const newLink = document.createElement('link');
+        newLink.rel = 'stylesheet';
+        newLink.href = href;
+        document.head.appendChild(newLink);
+      }
+    });
+
+    doc.querySelectorAll('script').forEach(script => {
+      const src = script.getAttribute('src');
+      if (src && !document.querySelector(`script[src="${src}"]`)) {
+        const newScript = document.createElement('script');
+        newScript.type = script.getAttribute('type') || 'text/javascript';
+        newScript.src = src;
+        if (script.hasAttribute('crossorigin')) {
+           newScript.crossOrigin = script.getAttribute('crossorigin');
+        }
+        document.body.appendChild(newScript);
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    appContainer.innerHTML = `<div class="text-center p-8 text-red-500">Failed to load game environment.</div>`;
+  }
 }
