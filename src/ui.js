@@ -2502,31 +2502,36 @@ export function updateMobileNav(currentPath) {
   const isProfile = currentPath === '/profile';
   const isAdmin = currentPath === '/adminpanel';
   const isSimulation = currentPath === '/simulation' || currentPath === '/organicgame';
+  const isContact = currentPath === '/contact';
 
   const nav = document.createElement('div');
   nav.id = 'mobile-nav';
   nav.className = 'mobile-nav';
   nav.innerHTML = `
-    <div class="flex justify-around items-center max-w-md mx-auto px-2">
+    <div class="flex justify-between items-center w-full px-1">
       <div class="mobile-nav-item ${isHome ? 'active' : ''}" onclick="navigateTo('/home')">
-        <span class="text-2xl">🏠</span>
-        <span class="text-[0.65rem] mt-1 font-medium">Home</span>
+        <span class="text-xl">🏠</span>
+        <span class="text-[0.55rem] mt-0.5 font-bold">Home</span>
       </div>
       <div class="mobile-nav-item ${isTimetable ? 'active' : ''}" onclick="navigateTo('/timetable')">
-        <span class="text-2xl">📅</span>
-        <span class="text-[0.65rem] mt-1 font-medium">Schedule</span>
+        <span class="text-xl">📅</span>
+        <span class="text-[0.55rem] mt-0.5 font-bold">Schedule</span>
       </div>
       <div class="mobile-nav-item ${isSimulation ? 'active' : ''}" onclick="navigateTo('/simulation')">
-        <span class="text-2xl">🧪</span>
-        <span class="text-[0.65rem] mt-1 font-medium">Labs</span>
+        <span class="text-xl">🧪</span>
+        <span class="text-[0.55rem] mt-0.5 font-bold">Labs</span>
       </div>
       <div class="mobile-nav-item ${isRecordings ? 'active' : ''}" onclick="navigateTo('/recordings')">
-        <span class="text-2xl">🎥</span>
-        <span class="text-[0.65rem] mt-1 font-medium">Lectures</span>
+        <span class="text-xl">🎥</span>
+        <span class="text-[0.55rem] mt-0.5 font-bold">Lectures</span>
+      </div>
+      <div class="mobile-nav-item ${isContact ? 'active' : ''}" onclick="navigateTo('/contact')">
+        <span class="text-xl">💬</span>
+        <span class="text-[0.55rem] mt-0.5 font-bold">Support</span>
       </div>
       <div class="mobile-nav-item ${isProfile || isAdmin ? 'active' : ''}" onclick="navigateTo('/profile')">
-        <span class="text-2xl">👤</span>
-        <span class="text-[0.65rem] mt-1 font-medium">Profile</span>
+        <span class="text-xl">👤</span>
+        <span class="text-[0.55rem] mt-0.5 font-bold">Profile</span>
       </div>
     </div>
   `;
