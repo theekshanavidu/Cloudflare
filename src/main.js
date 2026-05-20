@@ -153,6 +153,27 @@ async function requestNotificationPermission() {
     return 'denied';
 }
 
+// Function to get a cookie value
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+}
+
+// Function to set a cookie value
+function setCookie(name, value, days = 365) {
+    const date = new Date();
+    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+    const expires = "; expires=" + date.toUTCString();
+    document.cookie = name + "=" + (value || "")  + expires + "; path=/; SameSite=Lax";
+}
+
+// Function to remove a cookie
+function removeCookie(name) {
+    document.cookie = name + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
+}
+
 // --- Initialization ---
 window.addEventListener('popstate', router);
 window.addEventListener('load', () => {
@@ -170,13 +191,15 @@ window.addEventListener('load', () => {
         // Track user activity and manage session
         if (currentUser) {
             // Session Management
-            let localSessionId = localStorage.getItem('studyTrackerSessionId');
-            const pendingSessionId = localStorage.getItem('pendingSessionId');
+            let localSessionId = localStorage.getItem('studyTrackerSessionId') || getCookie('studyTrackerSessionId');
+            const pendingSessionId = localStorage.getItem('pendingSessionId') || getCookie('pendingSessionId');
 
             if (pendingSessionId) {
                 localSessionId = pendingSessionId;
                 localStorage.setItem('studyTrackerSessionId', localSessionId);
+                setCookie('studyTrackerSessionId', localSessionId);
                 localStorage.removeItem('pendingSessionId');
+                removeCookie('pendingSessionId');
                 // Update Firestore immediately
                 updateDoc(doc(db, 'users', currentUser.uid), { sessionId: localSessionId }).catch(e=>console.log('Session update err:', e));
             }
@@ -184,6 +207,7 @@ window.addEventListener('load', () => {
             if (!localSessionId) {
                 localSessionId = Date.now().toString() + Math.random().toString();
                 localStorage.setItem('studyTrackerSessionId', localSessionId);
+                setCookie('studyTrackerSessionId', localSessionId);
             }
 
             if (sessionUnsubscribe) sessionUnsubscribe();
@@ -202,6 +226,7 @@ window.addEventListener('load', () => {
             UI.trackUserActivity(currentUser.uid);
             UI.listenForNotifications(currentUser);
             UI.checkNewYearPopup(currentUser);
+            if (window.checkAndDisplayGlobalNotification) window.checkAndDisplayGlobalNotification(currentUser);
             await requestNotificationPermission();
         } else {
             if (sessionUnsubscribe) {
@@ -209,7 +234,9 @@ window.addEventListener('load', () => {
                 sessionUnsubscribe = null;
             }
             localStorage.removeItem('studyTrackerSessionId');
+            removeCookie('studyTrackerSessionId');
             localStorage.removeItem('pendingSessionId');
+            removeCookie('pendingSessionId');
             UI.listenForNotifications(null);
         }
 

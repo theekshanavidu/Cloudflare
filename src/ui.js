@@ -25,9 +25,18 @@ import {
   deleteDoc,
   orderBy,
   writeBatch,
-  onSnapshot
+  onSnapshot,
+  arrayUnion,
+  limit
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { auth, db, ADMIN_UID, NILANTHA_MODERATORS } from "./firebase.js";
+
+function setCookie(name, value, days = 365) {
+  const date = new Date();
+  date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+  const expires = "; expires=" + date.toUTCString();
+  document.cookie = name + "=" + (value || "")  + expires + "; path=/; SameSite=Lax";
+}
 
 const getLocalDateString = (d = new Date()) => {
   const tzOffset = d.getTimezoneOffset() * 60000;
@@ -458,7 +467,9 @@ export function renderLogin(navigate) {
   document.getElementById('login-form').onsubmit = async (e) => {
     e.preventDefault();
     try {
-      localStorage.setItem('pendingSessionId', Date.now().toString() + Math.random().toString());
+      const pendingId = Date.now().toString() + Math.random().toString();
+      localStorage.setItem('pendingSessionId', pendingId);
+      setCookie('pendingSessionId', pendingId);
       await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value);
       navigate('/home');
     } catch (err) { alert(err.message); }
@@ -480,7 +491,9 @@ export function renderLogin(navigate) {
 
   document.getElementById('google-login').onclick = async () => {
     try {
-      localStorage.setItem('pendingSessionId', Date.now().toString() + Math.random().toString());
+      const pendingId = Date.now().toString() + Math.random().toString();
+      localStorage.setItem('pendingSessionId', pendingId);
+      setCookie('pendingSessionId', pendingId);
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const u = result.user;
@@ -587,7 +600,9 @@ export function renderRegister(navigate) {
          photoURL = await compressImage(fileInput.files[0]);
       }
       const displayName = f.get('firstName') + ' ' + f.get('lastName');
-      localStorage.setItem('pendingSessionId', Date.now().toString() + Math.random().toString());
+      const pendingId = Date.now().toString() + Math.random().toString();
+      localStorage.setItem('pendingSessionId', pendingId);
+      setCookie('pendingSessionId', pendingId);
       const cred = await createUserWithEmailAndPassword(auth, f.get('email'), f.get('password'));
       const profileUpdate = { displayName };
       if (photoURL) profileUpdate.photoURL = photoURL;
@@ -615,7 +630,9 @@ export function renderRegister(navigate) {
   // Google Sign Up
   document.getElementById('google-signup').onclick = async () => {
     try {
-      localStorage.setItem('pendingSessionId', Date.now().toString() + Math.random().toString());
+      const pendingId = Date.now().toString() + Math.random().toString();
+      localStorage.setItem('pendingSessionId', pendingId);
+      setCookie('pendingSessionId', pendingId);
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const u = result.user;
@@ -657,6 +674,44 @@ export async function renderHome(user) {
 
   appContainer.innerHTML = `
         <div class="max-w-7xl mx-auto pt-8 pb-12">
+            <!-- Exam Countdown Card -->
+            <div class="mb-8 p-6 rounded-2xl bg-gradient-to-r from-indigo-950/70 via-slate-900/80 to-purple-950/70 border border-indigo-500/20 shadow-xl shadow-indigo-950/20 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
+                <!-- Decorative absolute glowing shapes -->
+                <div class="absolute -right-20 -top-20 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -left-20 -bottom-20 w-60 h-60 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                
+                <div class="flex items-center gap-4 relative z-10">
+                    <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-2xl shadow-inner">
+                        ⏳
+                    </div>
+                    <div>
+                        <h2 class="text-xs uppercase tracking-widest text-indigo-400 font-extrabold">Exam Countdown</h2>
+                        <h3 class="text-xl font-black text-[var(--text-primary)]">2026 A/L Exam</h3>
+                        <p class="text-xs text-[var(--text-secondary)] mt-0.5">Target Date: August 10, 2026</p>
+                    </div>
+                </div>
+
+                <!-- Timer Blocks -->
+                <div id="exam-countdown-timer" class="flex gap-2 sm:gap-4 relative z-10">
+                    <div class="flex flex-col items-center min-w-[64px] p-2 bg-black/40 backdrop-blur-md rounded-xl border border-[var(--glass-border)]">
+                        <span id="countdown-days" class="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-indigo-200">00</span>
+                        <span class="text-[9px] uppercase tracking-wider text-[var(--text-secondary)] font-bold mt-1">Days</span>
+                    </div>
+                    <div class="flex flex-col items-center min-w-[64px] p-2 bg-black/40 backdrop-blur-md rounded-xl border border-[var(--glass-border)]">
+                        <span id="countdown-hours" class="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-indigo-200">00</span>
+                        <span class="text-[9px] uppercase tracking-wider text-[var(--text-secondary)] font-bold mt-1">Hours</span>
+                    </div>
+                    <div class="flex flex-col items-center min-w-[64px] p-2 bg-black/40 backdrop-blur-md rounded-xl border border-[var(--glass-border)]">
+                        <span id="countdown-mins" class="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-indigo-200">00</span>
+                        <span class="text-[9px] uppercase tracking-wider text-[var(--text-secondary)] font-bold mt-1">Mins</span>
+                    </div>
+                    <div class="flex flex-col items-center min-w-[64px] p-2 bg-black/40 backdrop-blur-md rounded-xl border border-[var(--glass-border)]">
+                        <span id="countdown-secs" class="text-2xl sm:text-3xl font-black text-rose-400">00</span>
+                        <span class="text-[9px] uppercase tracking-wider text-rose-400/80 font-bold mt-1">Secs</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Greeting & Quick Actions -->
             <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
                 <div>
@@ -747,6 +802,57 @@ export async function renderHome(user) {
   };
 
   updateCharts();
+
+  // Initialize Exam Countdown Timer (August 10, 2026 00:00:00)
+  if (window.examCountdownInterval) {
+    clearInterval(window.examCountdownInterval);
+    window.examCountdownInterval = null;
+  }
+
+  const examTargetDate = new Date('August 10, 2026 00:00:00').getTime();
+
+  const updateExamCountdown = () => {
+    const now = Date.now();
+    const distance = examTargetDate - now;
+
+    const daysEl = document.getElementById('countdown-days');
+    const hoursEl = document.getElementById('countdown-hours');
+    const minsEl = document.getElementById('countdown-mins');
+    const secsEl = document.getElementById('countdown-secs');
+
+    if (!daysEl || !hoursEl || !minsEl || !secsEl) {
+      if (window.examCountdownInterval) {
+        clearInterval(window.examCountdownInterval);
+        window.examCountdownInterval = null;
+      }
+      return;
+    }
+
+    if (distance < 0) {
+      daysEl.textContent = '00';
+      hoursEl.textContent = '00';
+      minsEl.textContent = '00';
+      secsEl.textContent = '00';
+      if (window.examCountdownInterval) {
+        clearInterval(window.examCountdownInterval);
+        window.examCountdownInterval = null;
+      }
+      return;
+    }
+
+    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+    daysEl.textContent = String(days).padStart(2, '0');
+    hoursEl.textContent = String(hours).padStart(2, '0');
+    minsEl.textContent = String(minutes).padStart(2, '0');
+    secsEl.textContent = String(seconds).padStart(2, '0');
+  };
+
+  updateExamCountdown();
+  window.examCountdownInterval = setInterval(updateExamCountdown, 1000);
 
   // -- Floating Functions for Window Scope --
   window.editDailyGoal = async (current) => {
@@ -912,6 +1018,12 @@ export async function renderAdmin(user) {
                     </button>
                     <button onclick="window.openBroadcastModal()" class="btn-primary flex items-center gap-2">
                         <span>📢</span> Broadcast
+                    </button>
+                    <button onclick="window.openGlobalPopupModal()" class="btn-primary bg-emerald-600 hover:bg-emerald-700 flex items-center gap-2">
+                        <span>📣</span> Global Pop-up
+                    </button>
+                    <button onclick="window.openVikumResourcesModal()" class="btn-primary bg-purple-600 hover:bg-purple-700 flex items-center gap-2">
+                        <span>🔗</span> Vikum Link
                     </button>
                 </div>
             </div>
@@ -1357,6 +1469,128 @@ export async function renderAdmin(user) {
     };
   };
 
+  window.openGlobalPopupModal = () => {
+    showFloatingModal(`
+            <h3 class="text-xl font-bold text-[var(--text-primary)] mb-4">Create Global Pop-up 📣</h3>
+            <p class="text-[var(--text-secondary)] text-sm mb-4">This will show as a pop-up to ALL users on their next login. Users who dismiss it will not see it again.</p>
+            <form id="global-popup-form" class="space-y-4">
+                <input name="title" placeholder="Title (e.g. Happy New Year!)" class="smart-input" required>
+                <textarea name="message" placeholder="Type your message here..." class="smart-input min-h-[100px]" required></textarea>
+                <button type="submit" class="btn-primary w-full py-3 bg-emerald-600 hover:bg-emerald-700">Set Global Pop-up</button>
+            </form>
+        `);
+
+    document.getElementById('global-popup-form').onsubmit = async (e) => {
+      e.preventDefault();
+      if (!confirm("Are you sure you want to set this as the new Global Pop-up?")) return;
+
+      const title = e.target.title.value;
+      const msg = e.target.message.value;
+
+      try {
+        await addDoc(collection(db, 'global_notifications'), {
+          title: title,
+          message: msg,
+          timestamp: Date.now(),
+          active: true
+        });
+        alert("Global Pop-up created successfully!");
+        closeFloatingModal();
+      } catch (err) {
+        console.error("Error creating global popup:", err);
+        alert("Failed to create Global Pop-up.");
+      }
+    };
+  };
+
+  window.openVikumResourcesModal = async () => {
+    let currentLink = 'https://drive.google.com/drive/folders/1nQSEX2Q5cPhu-YsMpQUKWQuRh-0vqZ-G?usp=drive_link';
+    try {
+      const docRef = doc(db, 'settings', 'vikum_resources');
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists() && docSnap.data().link) {
+        currentLink = docSnap.data().link;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    showFloatingModal(`
+        <h3 class="text-xl font-bold text-[var(--text-primary)] mb-4">Vikum Harshana Resources Link 🔗</h3>
+        <p class="text-[var(--text-secondary)] text-sm mb-4">Update the Resources link for Vikum Harshana (Combine Maths Supportive).</p>
+        <form id="vikum-resources-form" class="space-y-4">
+            <input name="link" placeholder="Enter link (e.g. https://t.me/...)" class="smart-input" value="${currentLink}" required>
+            <button type="submit" class="btn-primary w-full py-3 bg-purple-600 hover:bg-purple-700">Update Link</button>
+        </form>
+    `);
+
+    document.getElementById('vikum-resources-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const link = e.target.link.value;
+      try {
+        await setDoc(doc(db, 'settings', 'vikum_resources'), { link, updatedAt: Date.now() }, { merge: true });
+        alert("Resources link updated successfully!");
+        closeFloatingModal();
+      } catch (err) {
+        console.error("Error updating Vikum resources link:", err);
+        alert("Failed to update link.");
+      }
+    };
+  };
+
+  window.checkAndDisplayGlobalNotification = async (user) => {
+    if (!user) return;
+    try {
+      // Fetch latest 5 notifications to find the active one without needing a composite index
+      const q = query(collection(db, 'global_notifications'), orderBy('timestamp', 'desc'), limit(5));
+      const snap = await getDocs(q);
+      if (snap.empty) return;
+      
+      // Find the first active notification
+      const notifDoc = snap.docs.find(doc => doc.data().active === true);
+      if (!notifDoc) return;
+
+      const notifData = notifDoc.data();
+      const notifId = notifDoc.id;
+
+      // Check if user has already dismissed this notification
+      const userRef = doc(db, 'users', user.uid);
+      const userDocSnap = await getDoc(userRef);
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        if (userData.dismissed_notifications && userData.dismissed_notifications.includes(notifId)) {
+          return; // Already dismissed
+        }
+      }
+
+      // Show the popup
+      showFloatingModal(`
+        <div class="text-center">
+          <div class="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/30">
+            <span class="text-3xl text-white">📣</span>
+          </div>
+          <h3 class="text-2xl font-bold text-[var(--text-primary)] mb-4">${notifData.title}</h3>
+          <p class="text-[var(--text-secondary)] text-lg mb-6 leading-relaxed whitespace-pre-wrap">${notifData.message}</p>
+          <button id="dismiss-popup-btn" class="btn-primary w-full py-3 font-bold text-lg">Okay / Dismiss</button>
+        </div>
+      `);
+
+      document.getElementById('dismiss-popup-btn').onclick = async () => {
+        closeFloatingModal();
+        try {
+          await setDoc(userRef, {
+            dismissed_notifications: arrayUnion(notifId)
+          }, { merge: true });
+        } catch (e) {
+          console.error("Error dismissing notification:", e);
+        }
+      };
+
+    } catch (e) {
+      console.error("Error fetching global notification:", e);
+    }
+  };
+
   window.openEmailRequestsModal = async () => {
       showFloatingModal(`<h3 class="text-xl font-bold mb-4">Loading Email Requests...</h3>`);
       
@@ -1655,10 +1889,17 @@ export async function openLessonPage(subject, type, day, user) {
   const lessonId = `${subject}_${type}_${day}`;
   const canEdit = (user.uid === ADMIN_UID) || (NILANTHA_MODERATORS.includes(user.uid) && subject === 'physics-nilantha');
 
+  let headingText = `Day ${day} Content`;
+  if (subject === 'chemistry' && type === 'midnight-video') {
+    headingText = 'Midnight Session Videos';
+  } else if (subject === 'vikum-maths' && type === 'video') {
+    headingText = 'Supportive Program Videos';
+  }
+
   appContainer.innerHTML = `
         <div class="max-w-5xl mx-auto pt-8">
-            <h2 class="text-3xl font-bold text-[var(--text-primary)] mb-6">Day ${day} Content</h2>
-            <div id="content-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">Loading...</div>
+            <h2 class="text-3xl font-bold text-[var(--text-primary)] mb-6">${headingText}</h2>
+            <div id="content-list" class="grid grid-cols-2 gap-3 md:gap-4 mb-8">Loading...</div>
             
             ${canEdit ? `
                 <div class="smart-card border-dashed border-2 border-[var(--glass-border)] shadow-none">
@@ -1727,18 +1968,18 @@ function renderContentCards(contentData, listElement, canEdit, lessonId) {
     const isFirst = index === 0;
     const isLast = index === contentData.length - 1;
     return `
-                <div class="smart-card recording-card-big relative group">
-                    <a href="${item.link}" target="_blank" class="flex flex-col items-center justify-center text-center h-full p-6 text-[var(--text-primary)]">
-                        <div class="recording-icon-big text-5xl mb-4 text-indigo-400">▶</div>
-                        <h3 class="text-xl font-bold mb-2 group-hover:text-[var(--primary)] transition-colors">${item.text}</h3>
-                        <p class="text-xs text-[var(--text-secondary)]">Click to watch</p>
+                <div class="smart-card recording-card-big relative group p-0">
+                    <a href="${item.link}" target="_blank" class="flex flex-col items-center justify-center text-center h-full p-3 md:p-6 text-[var(--text-primary)]">
+                        <div class="recording-icon-big text-2xl md:text-5xl mb-2 md:mb-4 text-indigo-400">▶</div>
+                        <h3 class="text-xs md:text-xl font-bold mb-1 md:mb-2 group-hover:text-[var(--primary)] transition-colors line-clamp-2">${item.text}</h3>
+                        <p class="text-[10px] md:text-xs text-[var(--text-secondary)]">Click to watch</p>
                     </a>
                     ${canEdit ? `
                         <div class="absolute top-2 right-2 flex gap-1 bg-[var(--bg-secondary)] rounded-lg shadow-sm opacity-0 group-hover:opacity-100 transition-opacity p-1">
-                             ${!isFirst ? `<button onclick="moveItemUp('${item.id}', ${index}, '${lessonId}')" class="p-2 hover:text-blue-400" title="Move Up">⬆️</button>` : ''}
-                             ${!isLast ? `<button onclick="moveItemDown('${item.id}', ${index}, '${lessonId}')" class="p-2 hover:text-blue-400" title="Move Down">⬇️</button>` : ''}
-                             <button onclick="editItem('${item.id}', '${item.text}', '${item.link}')" class="p-2 hover:text-yellow-400" title="Edit">✏️</button>
-                             <button onclick="deleteItem('${item.id}')" class="p-2 hover:text-red-400" title="Delete">🗑️</button>
+                             ${!isFirst ? `<button onclick="moveItemUp('${item.id}', ${index}, '${lessonId}')" class="p-1 text-xs hover:text-blue-400" title="Move Up">⬆️</button>` : ''}
+                             ${!isLast ? `<button onclick="moveItemDown('${item.id}', ${index}, '${lessonId}')" class="p-1 text-xs hover:text-blue-400" title="Move Down">⬇️</button>` : ''}
+                             <button onclick="editItem('${item.id}', '${item.text}', '${item.link}')" class="p-1 text-xs hover:text-yellow-400" title="Edit">✏️</button>
+                             <button onclick="deleteItem('${item.id}')" class="p-1 text-xs hover:text-red-400" title="Delete">🗑️</button>
                         </div>
                     ` : ''}
                 </div>
@@ -2051,6 +2292,7 @@ export async function renderProfile(user) {
 
 import dineshImg from '../assets/teachers/Dinesh Muthugala.png';
 import monojImg from '../assets/teachers/monoj.jpg';
+import vikumImg from '../assets/teachers/vikum.jpg';
 
 export function renderSubjects(navigate) {
   const TEACHERS = [
@@ -2059,18 +2301,19 @@ export function renderSubjects(navigate) {
     { id: 'com-maths-manoj', name: 'Manoj Solangarachchi', subject: 'Combine Maths 2025', img: monojImg, color: 'blue' },
     { id: 'biology', name: 'Dinesh Muthugala', subject: 'Biology', img: dineshImg, color: 'green' },
     { id: 'physics', name: 'Anuradha Perera', subject: 'Physics', img: 'https://static.indeepa.lk/lecturer/7/en/652248466c448.jpg', color: 'cyan' },
-    { id: 'chemistry', name: 'Amila Dasanayake', subject: 'Chemistry', img: 'https://static.indeepa.lk/lecturer/6/en/6522475ddf2bf.jpg', color: 'emerald' }
+    { id: 'chemistry', name: 'Amila Dasanayake', subject: 'Chemistry', img: 'https://static.indeepa.lk/lecturer/6/en/6522475ddf2bf.jpg', color: 'emerald' },
+    { id: 'vikum-maths', name: 'Vikum Harshana', subject: 'Combine Maths Supportive', img: vikumImg, color: 'purple' }
   ];
   appContainer.innerHTML = `
         <div class="max-w-6xl mx-auto pt-8">
             <h2 class="text-3xl font-bold text-[var(--text-primary)] mb-8">Lecture Hall 📚</h2>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 justify-center">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 justify-center">
                 ${TEACHERS.map(t => `
                     <div class="smart-card p-0 overflow-hidden cursor-pointer group flex flex-col" onclick="navigateTo('/recording/${t.id}')">
-                        <div class="h-56 overflow-hidden"><img src="${t.img}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"></div>
-                        <div class="p-6 flex-1 flex flex-col justify-center text-center">
-                            <span class="text-sm font-bold uppercase tracking-wider text-${t.color}-400 mb-2 block">${t.subject}</span>
-                            <h3 class="text-2xl font-bold text-[var(--text-primary)] group-hover:text-indigo-400 transition-colors">${t.name}</h3>
+                        <div class="h-28 sm:h-56 overflow-hidden"><img src="${t.img}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"></div>
+                        <div class="p-3 md:p-6 flex-1 flex flex-col justify-center text-center">
+                            <span class="text-[10px] md:text-sm font-bold uppercase tracking-wider text-${t.color}-400 mb-1 md:mb-2 block">${t.subject}</span>
+                            <h3 class="text-xs md:text-2xl font-bold text-[var(--text-primary)] group-hover:text-indigo-400 transition-colors line-clamp-2">${t.name}</h3>
                         </div>
                     </div>
                 `).join('')}
@@ -2080,41 +2323,108 @@ export function renderSubjects(navigate) {
 }
 
 export function renderType(subject, navigate) {
+  if (subject === 'vikum-maths') {
+    appContainer.innerHTML = `
+        <div class="max-w-4xl mx-auto pt-12 text-center">
+            <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-4 uppercase tracking-widest">Combine Maths Supportive</h2>
+            <p class="text-sm text-[var(--text-secondary)] mb-8">Vikum Harshana</p>
+            <div class="grid grid-cols-2 gap-4 mt-12 max-w-xl mx-auto">
+                <div id="vikum-resources-btn" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
+                    <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">📂</div>
+                    <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Resources</h3>
+                </div>
+                <div onclick="navigateTo('/recording/vikum-maths/video/lesson01')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
+                    <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">🎥</div>
+                    <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Video</h3>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const btn = document.getElementById('vikum-resources-btn');
+    btn.onclick = async () => {
+        let link = 'https://drive.google.com/drive/folders/1nQSEX2Q5cPhu-YsMpQUKWQuRh-0vqZ-G?usp=drive_link';
+        try {
+            const docSnap = await getDoc(doc(db, 'settings', 'vikum_resources'));
+            if (docSnap.exists() && docSnap.data().link) {
+                link = docSnap.data().link;
+            }
+        } catch (e) {
+            console.error("Firestore read failed, falling back to default link:", e);
+        }
+        window.open(link, '_blank');
+    };
+    return;
+  }
+
   if (subject === 'com-maths-manoj' || subject === 'com-maths-ruwan-full') {
     const title = subject === 'com-maths-ruwan-full' ? 'Com Maths Full Syllabus 2025' : 'Combine Maths 2025';
     appContainer.innerHTML = `
         <div class="max-w-4xl mx-auto pt-12 text-center">
             <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-4 uppercase tracking-widest">${title}</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-12 max-w-2xl mx-auto">
-                <div onclick="navigateTo('/recording/${subject}/pure-maths')" class="smart-card hover:border-indigo-500 cursor-pointer group"><div class="text-6xl mb-4 group-hover:scale-110 transition-transform">📐</div><h3 class="text-2xl font-bold text-[var(--text-primary)]">Pure Maths</h3></div>
-                <div onclick="navigateTo('/recording/${subject}/applied-maths')" class="smart-card hover:border-indigo-500 cursor-pointer group"><div class="text-6xl mb-4 group-hover:scale-110 transition-transform">⚙️</div><h3 class="text-2xl font-bold text-[var(--text-primary)]">Applied Maths</h3></div>
+            <div class="grid grid-cols-2 gap-4 mt-12 max-w-2xl mx-auto">
+                <div onclick="navigateTo('/recording/${subject}/pure-maths')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8"><div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">📐</div><h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Pure Maths</h3></div>
+                <div onclick="navigateTo('/recording/${subject}/applied-maths')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8"><div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">⚙️</div><h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Applied Maths</h3></div>
             </div>
         </div>
     `;
     return;
   }
 
+  let items = [
+    { id: 'theory', icon: '📚', label: 'Theory' },
+    { id: 'revision', icon: '🔄', label: 'Revision' },
+    { id: 'paper', icon: '📝', label: 'Paper Class' },
+    { id: 'rapid', icon: '⚡', label: 'Rapid Revision' }
+  ];
+  if (subject === 'chemistry') {
+    items.push({ id: 'midnight', icon: '🌙', label: 'Midnight Session' });
+  }
+
+  const gridColsClass = items.length === 5 ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-5' : 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-4';
+
   appContainer.innerHTML = `
         <div class="max-w-4xl mx-auto pt-12 text-center">
             <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-4 uppercase tracking-widest">${subject}</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-12">
-                ${[{ id: 'theory', icon: '📚', label: 'Theory' }, { id: 'revision', icon: '🔄', label: 'Revision' }, { id: 'paper', icon: '📝', label: 'Paper Class' }, { id: 'rapid', icon: '⚡', label: 'Rapid Revision' }]
-      .map(i => `<div onclick="navigateTo('/recording/${subject}/${i.id}')" class="smart-card hover:border-indigo-500 cursor-pointer group"><div class="text-6xl mb-4 group-hover:scale-110 transition-transform">${i.icon}</div><h3 class="text-2xl font-bold text-[var(--text-primary)]">${i.label}</h3></div>`).join('')}
+            <div class="grid ${gridColsClass} gap-4 md:gap-6 mt-12">
+                ${items.map(i => `<div onclick="navigateTo('/recording/${subject}/${i.id}')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8"><div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">${i.icon}</div><h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">${i.label}</h3></div>`).join('')}
             </div>
         </div>
     `;
 }
 
 export async function renderLessons(subject, type, navigate, user) {
+  if (subject === 'chemistry' && type === 'midnight') {
+    appContainer.innerHTML = `
+        <div class="max-w-4xl mx-auto pt-12 text-center">
+            <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-4 uppercase tracking-widest">Chemistry / Midnight Session</h2>
+            <div class="grid grid-cols-2 gap-4 mt-12 max-w-xl mx-auto">
+                <div onclick="window.open('https://t.me/echemres26R/10559', '_blank')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
+                    <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">📂</div>
+                    <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Resources</h3>
+                </div>
+                <div onclick="navigateTo('/recording/chemistry/midnight-video/lesson01')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
+                    <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">🎥</div>
+                    <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Video</h3>
+                </div>
+            </div>
+        </div>
+    `;
+    return;
+  }
+
   const isRapid = type === 'rapid';
   const isUnitBased = (subject === 'com-maths-manoj' || subject === 'com-maths-ruwan-full');
   const maxLessons = isRapid ? 1 : (isUnitBased ? 15 : 20);
 
   const gridClass = isRapid ? "grid grid-cols-1 max-w-lg mx-auto gap-4 mt-8" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
   
+  let displayType = type.replace('-', ' ');
+  if (type === 'midnight-video') displayType = 'Midnight Session Video';
+  
   appContainer.innerHTML = `
         <div class="max-w-5xl mx-auto pt-8">
-            <h2 class="text-2xl font-bold text-[var(--text-primary)] capitalize mb-6">${subject.replace(/-/g, ' ')} / ${type.replace('-', ' ')}</h2>
+            <h2 class="text-2xl font-bold text-[var(--text-primary)] capitalize mb-6">${subject.replace(/-/g, ' ')} / ${displayType}</h2>
             <div class="${gridClass}" id="lesson-grid"><div class="animate-spin h-8 w-8 border-4 border-indigo-500 rounded-full border-t-transparent mx-auto"></div></div>
         </div>
     `;
@@ -2457,6 +2767,14 @@ export function renderContact(navigate, user) {
 export function renderSimulation(navigate) {
   const appContainer = document.getElementById('app-container');
   appContainer.innerHTML = `
+        <div id="simulation-testing-popup" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] transition-opacity duration-300">
+            <div class="bg-[var(--bg-secondary)] border-2 border-indigo-500/50 p-8 rounded-2xl shadow-[0_0_40px_rgba(79,70,229,0.4)] w-[90%] max-w-md mx-auto text-center transform scale-95 transition-transform duration-300">
+                <div class="text-6xl mb-4">🧪</div>
+                <h3 class="text-2xl font-bold text-white mb-4">Simulation Under Testing</h3>
+                <p class="text-slate-300 mb-6">Please note that the simulation features are currently in Testing Mode.</p>
+                <button onclick="document.getElementById('simulation-testing-popup').remove()" class="btn-primary w-full py-3 font-bold text-lg">OK</button>
+            </div>
+        </div>
         <div class="max-w-4xl mx-auto pt-8 pb-12">
             <div class="text-center mb-12">
                 <h1 class="text-4xl font-bold text-[var(--text-primary)] mb-4">Interactive Simulations</h1>
@@ -2520,7 +2838,7 @@ export async function renderOrganicGame() {
   }
 
   try {
-    const htmlResponse = await fetch('/organic/index.html');
+    const htmlResponse = await fetch('/organic/index.html?t=' + Date.now(), { cache: 'no-store' });
     const htmlText = await htmlResponse.text();
     
     const parser = new DOMParser();

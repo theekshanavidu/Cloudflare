@@ -1,5 +1,5 @@
 // Service Worker for StudyTracker Pro
-const CACHE_NAME = 'studytracker-v16';
+const CACHE_NAME = 'studytracker-v17';
 const ASSETS_TO_CACHE = [
     '/',
     '/icon.png',
@@ -44,7 +44,7 @@ self.addEventListener('fetch', (event) => {
             const fetchPromise = fetch(event.request)
                 .then((networkResponse) => {
                     // Update cache with new response
-                    if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+                    if (networkResponse && networkResponse.status === 200 && (networkResponse.type === 'basic' || networkResponse.type === 'cors')) {
                         const responseToCache = networkResponse.clone();
                         caches.open(CACHE_NAME).then((cache) => {
                             cache.put(event.request, responseToCache);
