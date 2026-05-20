@@ -1889,7 +1889,7 @@ export async function openLessonPage(subject, type, day, user) {
   const lessonId = `${subject}_${type}_${day}`;
   const canEdit = (user.uid === ADMIN_UID) || 
                   (NILANTHA_MODERATORS.includes(user.uid) && subject === 'physics-nilantha') ||
-                  (RAVINDU_MODERATORS.includes(user.uid) && subject === 'ravindu-maths');
+                  (RAVINDU_MODERATORS.includes(user.uid) && subject === 'ravindu-ict');
 
   let headingText = `Day ${day} Content`;
   if (subject === 'chemistry' && type === 'midnight-video') {
@@ -2306,7 +2306,7 @@ export function renderSubjects(navigate) {
     { id: 'physics', name: 'Anuradha Perera', subject: 'Physics', img: 'https://static.indeepa.lk/lecturer/7/en/652248466c448.jpg', color: 'cyan' },
     { id: 'chemistry', name: 'Amila Dasanayake', subject: 'Chemistry', img: 'https://static.indeepa.lk/lecturer/6/en/6522475ddf2bf.jpg', color: 'emerald' },
     { id: 'vikum-maths', name: 'Vikum Harshana', subject: 'Combine Maths', img: vikumImg, color: 'purple' },
-    { id: 'ravindu-maths', name: 'Ravindu Bandaranayake', subject: 'Combined Maths', img: ravinduImg, color: 'sky' }
+    { id: 'ravindu-ict', name: 'Ravindu Bandaranayake', subject: 'ICT', img: ravinduImg, color: 'sky' }
   ];
   appContainer.innerHTML = `
         <div class="max-w-6xl mx-auto pt-8">
@@ -2347,17 +2347,17 @@ export function renderType(subject, navigate) {
     return;
   }
 
-  if (subject === 'ravindu-maths') {
+  if (subject === 'ravindu-ict') {
     appContainer.innerHTML = `
         <div class="max-w-4xl mx-auto pt-12 text-center">
-            <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-4 uppercase tracking-widest">Combine Maths</h2>
+            <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-4 uppercase tracking-widest">ICT</h2>
             <p class="text-sm text-[var(--text-secondary)] mb-8">Ravindu Bandaranayake</p>
             <div class="grid grid-cols-2 gap-4 mt-12 max-w-xl mx-auto">
-                <div onclick="navigateTo('/recording/ravindu-maths/theory')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
+                <div onclick="navigateTo('/recording/ravindu-ict/theory')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
                     <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">📚</div>
                     <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Theory</h3>
                 </div>
-                <div onclick="navigateTo('/recording/ravindu-maths/revision')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
+                <div onclick="navigateTo('/recording/ravindu-ict/revision')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
                     <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">🔄</div>
                     <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Revision</h3>
                 </div>
@@ -2465,10 +2465,19 @@ export async function renderLessons(subject, type, navigate, user) {
   
   let displayType = type.replace('-', ' ');
   if (type === 'midnight-video') displayType = 'Midnight Session Video';
+
+  const subjectDisplayNames = {
+    'ravindu-ict': 'ICT',
+    'vikum-maths': 'Combine Maths',
+    'com-maths-manoj': 'Combine Maths 2025',
+    'com-maths-ruwan-full': 'Com Maths Full Syllabus 2025',
+    'physics-nilantha': 'Physics'
+  };
+  const subjectDisplay = subjectDisplayNames[subject] || subject.replace(/-/g, ' ');
   
   appContainer.innerHTML = `
         <div class="max-w-5xl mx-auto pt-8">
-            <h2 class="text-2xl font-bold text-[var(--text-primary)] capitalize mb-6">${subject.replace(/-/g, ' ')} / ${displayType}</h2>
+            <h2 class="text-2xl font-bold text-[var(--text-primary)] capitalize mb-6">${subjectDisplay} / ${displayType}</h2>
             <div class="${gridClass}" id="lesson-grid"><div class="animate-spin h-8 w-8 border-4 border-indigo-500 rounded-full border-t-transparent mx-auto"></div></div>
         </div>
     `;
@@ -2482,7 +2491,7 @@ export async function renderLessons(subject, type, navigate, user) {
   grid.innerHTML = '';
   const canEdit = (user.uid === ADMIN_UID) || 
                   (NILANTHA_MODERATORS.includes(user.uid) && subject === 'physics-nilantha') ||
-                  (RAVINDU_MODERATORS.includes(user.uid) && subject === 'ravindu-maths');
+                  (RAVINDU_MODERATORS.includes(user.uid) && subject === 'ravindu-ict');
 
   for (let i = 1; i <= maxLessons; i++) {
     const day = String(i).padStart(2, "0");
