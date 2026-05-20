@@ -29,7 +29,7 @@ import {
   arrayUnion,
   limit
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { auth, db, ADMIN_UID, NILANTHA_MODERATORS } from "./firebase.js";
+import { auth, db, ADMIN_UID, NILANTHA_MODERATORS, RAVINDU_MODERATORS } from "./firebase.js";
 
 function setCookie(name, value, days = 365) {
   const date = new Date();
@@ -1887,7 +1887,9 @@ const CONTENT_CACHE_DURATION = 20000; // 20 seconds
 
 export async function openLessonPage(subject, type, day, user) {
   const lessonId = `${subject}_${type}_${day}`;
-  const canEdit = (user.uid === ADMIN_UID) || (NILANTHA_MODERATORS.includes(user.uid) && subject === 'physics-nilantha');
+  const canEdit = (user.uid === ADMIN_UID) || 
+                  (NILANTHA_MODERATORS.includes(user.uid) && subject === 'physics-nilantha') ||
+                  (RAVINDU_MODERATORS.includes(user.uid) && subject === 'ravindu-maths');
 
   let headingText = `Day ${day} Content`;
   if (subject === 'chemistry' && type === 'midnight-video') {
@@ -2293,6 +2295,7 @@ export async function renderProfile(user) {
 import dineshImg from '../assets/teachers/Dinesh Muthugala.png';
 import monojImg from '../assets/teachers/monoj.jpg';
 import vikumImg from '../assets/teachers/vikum.jpg';
+import ravinduImg from '../assets/teachers/ravindu.jpg';
 
 export function renderSubjects(navigate) {
   const TEACHERS = [
@@ -2302,7 +2305,8 @@ export function renderSubjects(navigate) {
     { id: 'biology', name: 'Dinesh Muthugala', subject: 'Biology', img: dineshImg, color: 'green' },
     { id: 'physics', name: 'Anuradha Perera', subject: 'Physics', img: 'https://static.indeepa.lk/lecturer/7/en/652248466c448.jpg', color: 'cyan' },
     { id: 'chemistry', name: 'Amila Dasanayake', subject: 'Chemistry', img: 'https://static.indeepa.lk/lecturer/6/en/6522475ddf2bf.jpg', color: 'emerald' },
-    { id: 'vikum-maths', name: 'Vikum Harshana', subject: 'Combine Maths Supportive', img: vikumImg, color: 'purple' }
+    { id: 'vikum-maths', name: 'Vikum Harshana', subject: 'Combine Maths', img: vikumImg, color: 'purple' },
+    { id: 'ravindu-maths', name: 'Ravindu Bandaranayake', subject: 'Combined Maths', img: ravinduImg, color: 'sky' }
   ];
   appContainer.innerHTML = `
         <div class="max-w-6xl mx-auto pt-8">
@@ -2326,34 +2330,40 @@ export function renderType(subject, navigate) {
   if (subject === 'vikum-maths') {
     appContainer.innerHTML = `
         <div class="max-w-4xl mx-auto pt-12 text-center">
-            <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-4 uppercase tracking-widest">Combine Maths Supportive</h2>
+            <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-4 uppercase tracking-widest">Combine Maths</h2>
             <p class="text-sm text-[var(--text-secondary)] mb-8">Vikum Harshana</p>
             <div class="grid grid-cols-2 gap-4 mt-12 max-w-xl mx-auto">
-                <div id="vikum-resources-btn" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
-                    <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">📂</div>
-                    <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Resources</h3>
+                <div onclick="navigateTo('/recording/vikum-maths/supportive')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
+                    <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">🤝</div>
+                    <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Maths Supportive</h3>
                 </div>
-                <div onclick="navigateTo('/recording/vikum-maths/video/lesson01')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
-                    <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">🎥</div>
-                    <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Video</h3>
+                <div onclick="navigateTo('/recording/vikum-maths/revision')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
+                    <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">🔄</div>
+                    <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Revision</h3>
                 </div>
             </div>
         </div>
     `;
+    return;
+  }
 
-    const btn = document.getElementById('vikum-resources-btn');
-    btn.onclick = async () => {
-        let link = 'https://drive.google.com/drive/folders/1nQSEX2Q5cPhu-YsMpQUKWQuRh-0vqZ-G?usp=drive_link';
-        try {
-            const docSnap = await getDoc(doc(db, 'settings', 'vikum_resources'));
-            if (docSnap.exists() && docSnap.data().link) {
-                link = docSnap.data().link;
-            }
-        } catch (e) {
-            console.error("Firestore read failed, falling back to default link:", e);
-        }
-        window.open(link, '_blank');
-    };
+  if (subject === 'ravindu-maths') {
+    appContainer.innerHTML = `
+        <div class="max-w-4xl mx-auto pt-12 text-center">
+            <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-4 uppercase tracking-widest">Combine Maths</h2>
+            <p class="text-sm text-[var(--text-secondary)] mb-8">Ravindu Bandaranayake</p>
+            <div class="grid grid-cols-2 gap-4 mt-12 max-w-xl mx-auto">
+                <div onclick="navigateTo('/recording/ravindu-maths/theory')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
+                    <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">📚</div>
+                    <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Theory</h3>
+                </div>
+                <div onclick="navigateTo('/recording/ravindu-maths/revision')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
+                    <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">🔄</div>
+                    <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Revision</h3>
+                </div>
+            </div>
+        </div>
+    `;
     return;
   }
 
@@ -2394,6 +2404,40 @@ export function renderType(subject, navigate) {
 }
 
 export async function renderLessons(subject, type, navigate, user) {
+  if (subject === 'vikum-maths' && type === 'supportive') {
+    appContainer.innerHTML = `
+        <div class="max-w-4xl mx-auto pt-12 text-center">
+            <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-4 uppercase tracking-widest">Combine Maths / Supportive</h2>
+            <p class="text-sm text-[var(--text-secondary)] mb-8">Vikum Harshana</p>
+            <div class="grid grid-cols-2 gap-4 mt-12 max-w-xl mx-auto">
+                <div id="vikum-resources-btn" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
+                    <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">📂</div>
+                    <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Resources</h3>
+                </div>
+                <div onclick="navigateTo('/recording/vikum-maths/video/lesson01')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
+                    <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">🎥</div>
+                    <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Video</h3>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const btn = document.getElementById('vikum-resources-btn');
+    btn.onclick = async () => {
+        let link = 'https://drive.google.com/drive/folders/1nQSEX2Q5cPhu-YsMpQUKWQuRh-0vqZ-G?usp=drive_link';
+        try {
+            const docSnap = await getDoc(doc(db, 'settings', 'vikum_resources'));
+            if (docSnap.exists() && docSnap.data().link) {
+                link = docSnap.data().link;
+            }
+        } catch (e) {
+            console.error("Firestore read failed, falling back to default link:", e);
+        }
+        window.open(link, '_blank');
+    };
+    return;
+  }
+
   if (subject === 'chemistry' && type === 'midnight') {
     appContainer.innerHTML = `
         <div class="max-w-4xl mx-auto pt-12 text-center">
@@ -2436,7 +2480,9 @@ export async function renderLessons(subject, type, navigate, user) {
   } catch (e) { console.error(e); }
   const grid = document.getElementById('lesson-grid');
   grid.innerHTML = '';
-  const canEdit = (user.uid === ADMIN_UID) || (NILANTHA_MODERATORS.includes(user.uid) && subject === 'physics-nilantha'); // Simplified permission check for brevity
+  const canEdit = (user.uid === ADMIN_UID) || 
+                  (NILANTHA_MODERATORS.includes(user.uid) && subject === 'physics-nilantha') ||
+                  (RAVINDU_MODERATORS.includes(user.uid) && subject === 'ravindu-maths');
 
   for (let i = 1; i <= maxLessons; i++) {
     const day = String(i).padStart(2, "0");

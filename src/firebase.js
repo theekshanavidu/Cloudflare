@@ -27,4 +27,5 @@ export const googleProvider = new GoogleAuthProvider();
 
 export const ADMIN_UID = "m1rddMA36WbVunFW3B0BzuqOwyI2";
 export const NILANTHA_MODERATORS = ["vn9a2rNQgbbYPyHRS2c28XwlMRJ3", "2M8JB3hF4GQdBIwHfzp2grjBVCJ3"];
+export const RAVINDU_MODERATORS = ["lk9bKS8oxKNt8HcslZrMgLmHOb43"];
 
