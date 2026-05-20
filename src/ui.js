@@ -95,6 +95,77 @@ const headerElement = document.getElementById('app-header');
 let notificationUnsubscribe = null;
 let globalNotificationUnsubscribe = null;
 
+window.checkAndDisplayGlobalNotification = (user) => {
+  if (!user) {
+    if (globalNotificationUnsubscribe) {
+      globalNotificationUnsubscribe();
+      globalNotificationUnsubscribe = null;
+    }
+    return;
+  }
+
+  if (globalNotificationUnsubscribe) {
+    globalNotificationUnsubscribe();
+  }
+
+  try {
+    // Listen to latest 5 notifications to find the active one in real-time
+    const q = query(collection(db, 'global_notifications'), orderBy('timestamp', 'desc'), limit(5));
+    globalNotificationUnsubscribe = onSnapshot(q, async (snap) => {
+      if (snap.empty) return;
+      
+      // Find the first active notification
+      const notifDoc = snap.docs.find(doc => doc.data().active === true);
+      if (!notifDoc) return;
+
+      const notifData = notifDoc.data();
+      const notifId = notifDoc.id;
+
+      // Check if user has already dismissed this notification
+      const userRef = doc(db, 'users', user.uid);
+      const userDocSnap = await getDoc(userRef);
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        if (userData.dismissed_notifications && userData.dismissed_notifications.includes(notifId)) {
+          return; // Already dismissed
+        }
+      }
+
+      // Show the popup
+      showFloatingModal(`
+        <div class="text-center">
+          <div class="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/30">
+            <span class="text-3xl text-white">📣</span>
+          </div>
+          <h3 class="text-2xl font-bold text-[var(--text-primary)] mb-4">${notifData.title}</h3>
+          <p class="text-[var(--text-secondary)] text-lg mb-6 leading-relaxed whitespace-pre-wrap">${notifData.message}</p>
+          <button id="dismiss-popup-btn" class="btn-primary w-full py-3 font-bold text-lg">Okay / Dismiss</button>
+        </div>
+      `);
+
+      // Save to database immediately that the user has viewed this notification
+      try {
+        await setDoc(userRef, {
+          dismissed_notifications: arrayUnion(notifId)
+        }, { merge: true });
+      } catch (e) {
+        console.error("Error saving viewed notification to database:", e);
+      }
+
+      const dismissBtn = document.getElementById('dismiss-popup-btn');
+      if (dismissBtn) {
+        dismissBtn.onclick = () => {
+          closeFloatingModal();
+        };
+      }
+    }, (e) => {
+      console.error("Error listening to global notifications:", e);
+    });
+  } catch (e) {
+    console.error("Error setting up global notification listener:", e);
+  }
+};
+
 async function sendNotification(recipientId, title, message) {
   try {
     await addDoc(collection(db, 'notifications'), {
@@ -1541,77 +1612,6 @@ export async function renderAdmin(user) {
         alert("Failed to update link.");
       }
     };
-  };
-
-  window.checkAndDisplayGlobalNotification = (user) => {
-    if (!user) {
-      if (globalNotificationUnsubscribe) {
-        globalNotificationUnsubscribe();
-        globalNotificationUnsubscribe = null;
-      }
-      return;
-    }
-
-    if (globalNotificationUnsubscribe) {
-      globalNotificationUnsubscribe();
-    }
-
-    try {
-      // Listen to latest 5 notifications to find the active one in real-time
-      const q = query(collection(db, 'global_notifications'), orderBy('timestamp', 'desc'), limit(5));
-      globalNotificationUnsubscribe = onSnapshot(q, async (snap) => {
-        if (snap.empty) return;
-        
-        // Find the first active notification
-        const notifDoc = snap.docs.find(doc => doc.data().active === true);
-        if (!notifDoc) return;
-
-        const notifData = notifDoc.data();
-        const notifId = notifDoc.id;
-
-        // Check if user has already dismissed this notification
-        const userRef = doc(db, 'users', user.uid);
-        const userDocSnap = await getDoc(userRef);
-        if (userDocSnap.exists()) {
-          const userData = userDocSnap.data();
-          if (userData.dismissed_notifications && userData.dismissed_notifications.includes(notifId)) {
-            return; // Already dismissed
-          }
-        }
-
-        // Show the popup
-        showFloatingModal(`
-          <div class="text-center">
-            <div class="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/30">
-              <span class="text-3xl text-white">📣</span>
-            </div>
-            <h3 class="text-2xl font-bold text-[var(--text-primary)] mb-4">${notifData.title}</h3>
-            <p class="text-[var(--text-secondary)] text-lg mb-6 leading-relaxed whitespace-pre-wrap">${notifData.message}</p>
-            <button id="dismiss-popup-btn" class="btn-primary w-full py-3 font-bold text-lg">Okay / Dismiss</button>
-          </div>
-        `);
-
-        // Save to database immediately that the user has viewed this notification
-        try {
-          await setDoc(userRef, {
-            dismissed_notifications: arrayUnion(notifId)
-          }, { merge: true });
-        } catch (e) {
-          console.error("Error saving viewed notification to database:", e);
-        }
-
-        const dismissBtn = document.getElementById('dismiss-popup-btn');
-        if (dismissBtn) {
-          dismissBtn.onclick = () => {
-            closeFloatingModal();
-          };
-        }
-      }, (e) => {
-        console.error("Error listening to global notifications:", e);
-      });
-    } catch (e) {
-      console.error("Error setting up global notification listener:", e);
-    }
   };
 
   window.openEmailRequestsModal = async () => {
