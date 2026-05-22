@@ -2482,7 +2482,10 @@ export async function renderLessons(subject, type, navigate, user) {
 
   const isRapid = type === 'rapid';
   const isUnitBased = (subject === 'com-maths-manoj' || subject === 'com-maths-ruwan-full');
-  const maxLessons = isRapid ? 1 : (isUnitBased ? 15 : 20);
+  let maxLessons = isRapid ? 1 : (isUnitBased ? 15 : 20);
+  if (subject === 'vikum-maths' && type === 'revision') {
+    maxLessons = 30;
+  }
 
   const gridClass = isRapid ? "grid grid-cols-1 max-w-lg mx-auto gap-4 mt-8" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
   
