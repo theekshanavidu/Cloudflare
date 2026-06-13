@@ -1919,6 +1919,10 @@ export async function openLessonPage(subject, type, day, user) {
     headingText = 'Midnight Session Videos';
   } else if (subject === 'vikum-maths' && type === 'video') {
     headingText = 'Supportive Program Videos';
+  } else if (type === 'final-revise') {
+    headingText = `${parseInt(day)} Month Content`;
+  } else if (subject === 'vikum-maths' && type === 'rapid') {
+    headingText = `${parseInt(day)} Month Content`;
   }
 
   appContainer.innerHTML = `
@@ -2355,7 +2359,7 @@ export function renderType(subject, navigate) {
         <div class="max-w-4xl mx-auto pt-12 text-center">
             <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-4 uppercase tracking-widest">Combine Maths</h2>
             <p class="text-sm text-[var(--text-secondary)] mb-8">Vikum Harshana</p>
-            <div class="grid grid-cols-2 gap-4 mt-12 max-w-xl mx-auto">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-12 max-w-4xl mx-auto">
                 <div onclick="navigateTo('/recording/vikum-maths/supportive')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
                     <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">🤝</div>
                     <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Maths Supportive</h3>
@@ -2363,6 +2367,14 @@ export function renderType(subject, navigate) {
                 <div onclick="navigateTo('/recording/vikum-maths/revision')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
                     <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">🔄</div>
                     <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Revision</h3>
+                </div>
+                <div onclick="navigateTo('/recording/vikum-maths/rapid')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
+                    <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">⚡</div>
+                    <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Rapid Revision</h3>
+                </div>
+                <div onclick="navigateTo('/recording/vikum-maths/final-revise')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
+                    <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">🎯</div>
+                    <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Final Revise</h3>
                 </div>
             </div>
         </div>
@@ -2412,6 +2424,9 @@ export function renderType(subject, navigate) {
   ];
   if (subject === 'chemistry') {
     items.push({ id: 'midnight', icon: '🌙', label: 'Midnight Session' });
+  }
+  if (subject === 'physics') {
+    items.push({ id: 'final-revise', icon: '🎯', label: 'Final Revise' });
   }
 
   const gridColsClass = items.length === 5 ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-5' : 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-4';
@@ -2486,8 +2501,15 @@ export async function renderLessons(subject, type, navigate, user) {
   if (subject === 'vikum-maths' && type === 'revision') {
     maxLessons = 30;
   }
+  if (type === 'final-revise') {
+    maxLessons = 2;
+  }
+  if (subject === 'vikum-maths' && type === 'rapid') {
+    maxLessons = 5;
+  }
 
-  const gridClass = isRapid ? "grid grid-cols-1 max-w-lg mx-auto gap-4 mt-8" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
+  const isRapidSingle = isRapid && !(subject === 'vikum-maths' && type === 'rapid');
+  const gridClass = isRapidSingle ? "grid grid-cols-1 max-w-lg mx-auto gap-4 mt-8" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
   
   let displayType = type.replace('-', ' ');
   if (type === 'midnight-video') displayType = 'Midnight Session Video';
@@ -2522,18 +2544,28 @@ export async function renderLessons(subject, type, navigate, user) {
   for (let i = 1; i <= maxLessons; i++) {
     const day = String(i).padStart(2, "0");
     let defaultTitle;
-    if (isRapid) defaultTitle = "Rapid Revision Content";
-    else if (isUnitBased) defaultTitle = `Unit ${day}`;
-    else defaultTitle = `Day ${day} Lesson`;
+    if (type === 'final-revise') {
+      defaultTitle = `${i} Month`;
+    } else if (subject === 'vikum-maths' && type === 'rapid') {
+      defaultTitle = `${i} Month`;
+    } else if (isRapid) {
+      defaultTitle = "Rapid Revision Content";
+    } else if (isUnitBased) {
+      defaultTitle = `Unit ${day}`;
+    } else {
+      defaultTitle = `Day ${day} Lesson`;
+    }
 
     const title = lessonMap[day] || defaultTitle;
+    const useBigCard = isRapid || type === 'final-revise';
     const card = document.createElement('div');
     
-    if (isRapid) {
+    if (useBigCard) {
+        const icon = type === 'final-revise' ? '🎯' : '⚡';
         card.className = "smart-card p-8 flex flex-col justify-center items-center group cursor-pointer hover:border-indigo-500 transition-colors text-center shadow-lg relative";
         card.innerHTML = `
             <div class="w-full" onclick="navigateTo('/recording/${subject}/${type}/lesson${day}')">
-                <div class="w-20 h-20 mx-auto rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-4xl mb-4 group-hover:scale-110 transition-transform">⚡</div>
+                <div class="w-20 h-20 mx-auto rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-4xl mb-4 group-hover:scale-110 transition-transform">${icon}</div>
                 <h3 class="text-2xl font-bold text-[var(--text-primary)]">${title}</h3>
                 <p class="text-sm text-[var(--text-secondary)] mt-2">Click to view content</p>
             </div>
@@ -2545,7 +2577,7 @@ export async function renderLessons(subject, type, navigate, user) {
 
     if (canEdit) {
       const btn = document.createElement('button');
-      if (isRapid) {
+      if (useBigCard) {
           btn.innerHTML = `✎ Edit Title`;
           btn.className = "mt-6 text-indigo-400 hover:text-yellow-400 hover:bg-slate-800 p-2 px-4 font-bold bg-indigo-500/10 rounded-lg transition-colors border border-indigo-500/30";
           card.appendChild(btn);
