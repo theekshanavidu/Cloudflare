@@ -53,6 +53,10 @@ async function router() {
             UI.renderContact(navigateTo, currentUser);
             animatePageIn();
             return;
+        } else if (path === '/resources') {
+            UI.renderResources(navigateTo);
+            animatePageIn();
+            return;
         }
 
         // Protected Routes

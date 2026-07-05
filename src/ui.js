@@ -425,6 +425,7 @@ export async function renderHeader(user, navigate, logout) {
             <button class="${getNavClass('/recordings')}" onclick="navigateTo('/recordings')">Lectures</button>
             <button class="${getNavClass('/contact')}" onclick="navigateTo('/contact')">Contact Us</button>
             <button class="${getNavClass('/simulation')}" onclick="navigateTo('/simulation')">Simulation</button>
+            <button class="${getNavClass('/resources')}" onclick="navigateTo('/resources')">Resources Web</button>
             ${user.uid === ADMIN_UID ? `<button class="${adminClass}" onclick="navigateTo('/adminpanel')"><span>Admin</span> <span class="text-xs">🛡️</span></button>` : ''}
         </nav>
 
@@ -2616,6 +2617,7 @@ export function updateMobileNav(currentPath) {
   const isAdmin = currentPath === '/adminpanel';
   const isSimulation = currentPath === '/simulation' || currentPath === '/organicgame';
   const isContact = currentPath === '/contact';
+  const isResources = currentPath === '/resources';
 
   const nav = document.createElement('div');
   nav.id = 'mobile-nav';
@@ -2637,6 +2639,10 @@ export function updateMobileNav(currentPath) {
       <div class="mobile-nav-item ${isRecordings ? 'active' : ''}" onclick="navigateTo('/recordings')">
         <span class="text-xl">🎥</span>
         <span class="text-[0.55rem] mt-0.5 font-bold">Lectures</span>
+      </div>
+      <div class="mobile-nav-item ${isResources ? 'active' : ''}" onclick="navigateTo('/resources')">
+        <span class="text-xl">🌐</span>
+        <span class="text-[0.55rem] mt-0.5 font-bold">Web</span>
       </div>
       <div class="mobile-nav-item ${isContact ? 'active' : ''}" onclick="navigateTo('/contact')">
         <span class="text-xl">💬</span>
@@ -2988,4 +2994,101 @@ export async function renderOrganicGame() {
     console.error(error);
     appContainer.innerHTML = `<div class="text-center p-8 text-red-500">Failed to load game environment.</div>`;
   }
+}
+
+export function renderResources(navigate) {
+  const appContainer = document.getElementById('app-container');
+  appContainer.innerHTML = `
+    <div class="max-w-6xl mx-auto pt-8 pb-12 px-4">
+      <div class="text-center mb-12 fade-in">
+        <h1 class="text-4xl md:text-5xl font-extrabold text-[var(--text-primary)] mb-4 tracking-tight">
+          <span class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">Resources Web</span>
+        </h1>
+        <p class="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto">
+          Explore and access Combined Mathematics, Physics resources, web systems, and mobile applications from MathsRecoding.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 fade-in">
+        <!-- Card 1: Combine Paper Marking -->
+        <a href="https://combine.mathsrecoding.com" target="_blank" class="smart-card group hover:border-indigo-500/50 transition-all flex flex-col justify-between h-full relative overflow-hidden bg-gradient-to-br from-slate-900/40 to-slate-950/20 backdrop-blur-xl border border-white/5 shadow-2xl p-6 rounded-2xl hover:-translate-y-2 duration-300">
+          <div class="absolute -top-10 -right-10 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl group-hover:bg-indigo-500/20 transition-all duration-300"></div>
+          <div>
+            <div class="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-3xl mb-5 border border-indigo-500/20 group-hover:scale-110 transition-transform duration-300">
+              📝
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2 group-hover:text-indigo-400 transition-colors">
+              Combine Paper Marking
+            </h3>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Access the official Combined Mathematics Paper Marking resources. Track guidelines, schemes, and evaluations.
+            </p>
+          </div>
+          <div class="flex items-center text-indigo-400 font-semibold text-sm group-hover:translate-x-1 transition-transform">
+            Visit Website <span class="ml-2">→</span>
+          </div>
+        </a>
+
+        <!-- Card 2: Physics F To A plan AP -->
+        <a href="https://physics.mathsrecoding.com" target="_blank" class="smart-card group hover:border-pink-500/50 transition-all flex flex-col justify-between h-full relative overflow-hidden bg-gradient-to-br from-slate-900/40 to-slate-950/20 backdrop-blur-xl border border-white/5 shadow-2xl p-6 rounded-2xl hover:-translate-y-2 duration-300">
+          <div class="absolute -top-10 -right-10 w-24 h-24 bg-pink-500/10 rounded-full blur-2xl group-hover:bg-pink-500/20 transition-all duration-300"></div>
+          <div>
+            <div class="w-14 h-14 rounded-2xl bg-pink-500/10 flex items-center justify-center text-3xl mb-5 border border-pink-500/20 group-hover:scale-110 transition-transform duration-300">
+              ⚛️
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2 group-hover:text-pink-400 transition-colors">
+              Physics F To A plan AP
+            </h3>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Boost your Physics grades with the structured F To A study plan. Complete resources for theory, revisions, and exam prep.
+            </p>
+          </div>
+          <div class="flex items-center text-pink-400 font-semibold text-sm group-hover:translate-x-1 transition-transform">
+            Visit Website <span class="ml-2">→</span>
+          </div>
+        </a>
+
+        <!-- Card 3: Time Reminder Site -->
+        <a href="https://time.mathsrecoding.com" target="_blank" class="smart-card group hover:border-cyan-500/50 transition-all flex flex-col justify-between h-full relative overflow-hidden bg-gradient-to-br from-slate-900/40 to-slate-950/20 backdrop-blur-xl border border-white/5 shadow-2xl p-6 rounded-2xl hover:-translate-y-2 duration-300">
+          <div class="absolute -top-10 -right-10 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition-all duration-300"></div>
+          <div>
+            <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-3xl mb-5 border border-cyan-500/20 group-hover:scale-110 transition-transform duration-300">
+              ⏰
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2 group-hover:text-cyan-400 transition-colors">
+              Time Reminder Site
+            </h3>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Online scheduling and tracking system. Organize your alarms, reminders, and study plans efficiently from any web browser.
+            </p>
+          </div>
+          <div class="flex items-center text-cyan-400 font-semibold text-sm group-hover:translate-x-1 transition-transform">
+            Visit Website <span class="ml-2">→</span>
+          </div>
+        </a>
+
+        <!-- Card 4: Time Reminder Android App -->
+        <a href="/Edu.apk" download class="smart-card group hover:border-emerald-500/50 transition-all flex flex-col justify-between h-full relative overflow-hidden bg-gradient-to-br from-slate-900/40 to-slate-950/20 backdrop-blur-xl border border-white/5 shadow-2xl p-6 rounded-2xl hover:-translate-y-2 duration-300">
+          <div class="absolute -top-10 -right-10 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all duration-300"></div>
+          <div>
+            <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-3xl mb-5 border border-emerald-500/20 group-hover:scale-110 transition-transform duration-300">
+              📲
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">
+              Time Reminder Android App
+            </h3>
+            <span class="absolute top-4 right-4 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold text-[10px] px-2 py-0.5 rounded-full">
+              APK Download
+            </span>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Download the official Time Reminder Android Application. Stay connected to your studies with local notifications and alarms.
+            </p>
+          </div>
+          <div class="flex items-center text-emerald-400 font-semibold text-sm group-hover:translate-x-1 transition-transform">
+            Download App <span class="ml-2">↓</span>
+          </div>
+        </a>
+      </div>
+    </div>
+  `;
 }
