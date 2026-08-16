@@ -14,6 +14,12 @@
     --glass-border: rgba(255, 255, 255, 0.08);
 
     --bg-image: url('https://w.wallhaven.cc/full/wq/wallhaven-wqery6.jpg');
+
+    /* Safe Area Insets for iOS & modern bezel-less devices */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
 }
 
 /* --- Light Theme Overrides --- */
@@ -31,14 +37,21 @@
     --text-secondary: #64748b;
     --glass-border: rgba(0, 0, 0, 0.1);
 
-    --bg-image: url('https://img.freepik.com/free-vector/hand-drawn-school-supplies-pattern-background_23-2150855728.jpg')
+    --bg-image: url('https://img.freepik.com/free-vector/hand-drawn-school-supplies-pattern-background_23-2150855728.jpg');
 }
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html {
+    scroll-behavior: smooth;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -52,6 +65,14 @@ body {
     min-height: 100vh;
     overflow-x: hidden;
     transition: background-color 0.3s ease, color 0.3s ease;
+    padding-top: var(--safe-top);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+}
+
+/* --- Responsive Touch Targets & Interaction --- */
+button, a, input, select, textarea, .mobile-nav-item, .smart-card {
+    touch-action: manipulation;
 }
 
 /* --- Glass Utilities --- */
@@ -61,9 +82,15 @@ body {
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--glass-border);
     border-radius: 20px;
-    padding: 1.5rem;
+    padding: 1.25rem;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s;
+}
+
+@media (min-width: 768px) {
+    .smart-card {
+        padding: 1.5rem;
+    }
 }
 
 .smart-card:hover {
@@ -81,12 +108,20 @@ body {
     border: none;
     cursor: pointer;
     box-shadow: 0 4px 12px var(--primary-glow);
-    transition: transform 0.2s;
+    transition: transform 0.2s, filter 0.2s, box-shadow 0.2s;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .btn-primary:hover {
     transform: translateY(-2px);
     filter: brightness(1.1);
+}
+
+.btn-primary:active {
+    transform: scale(0.98);
 }
 
 .btn-ghost {
@@ -96,6 +131,10 @@ body {
     border-radius: 8px;
     cursor: pointer;
     transition: color 0.2s, background 0.2s;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .btn-ghost:hover {
@@ -112,7 +151,15 @@ body {
     border: 1px solid var(--glass-border);
     color: var(--text-primary);
     outline: none;
-    transition: border-color 0.3s;
+    font-size: 16px; /* Prevents auto-zoom in iOS Safari */
+    transition: border-color 0.3s, background-color 0.3s;
+    min-height: 44px;
+}
+
+@media (min-width: 768px) {
+    .smart-input {
+        font-size: 14px;
+    }
 }
 
 .smart-input:focus {
@@ -121,6 +168,12 @@ body {
 }
 
 /* --- Tables --- */
+.smart-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
 .smart-table {
     width: 100%;
     border-collapse: separate;
@@ -178,34 +231,15 @@ canvas {
     position: absolute;
     right: 0;
     top: 100%;
-    margin-top: 0.5rem;
-    width: 200px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--glass-border);
-    border-radius: 12px;
-    padding: 0.5rem;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    z-index: 100;
-    display: none;
-    /* We toggle 'hidden' class in JS instead of hover for better mobile support if needed */
-}
-
-
-/* --- Profile Dropdown Fix --- */
-/* Override previous settings to ensure continuous hover area */
-.profile-dropdown {
-    position: absolute;
-    right: 0;
-    top: 100%;
     margin-top: 0;
     padding-top: 10px;
-    /* Bridge the gap */
-    width: 200px;
+    width: 220px;
     z-index: 50;
     display: none;
 }
 
-.group:hover .profile-dropdown {
+.group:hover .profile-dropdown,
+.group:focus-within .profile-dropdown {
     display: block;
     animation: fadeIn 0.2s ease-out;
 }
@@ -213,9 +247,9 @@ canvas {
 .profile-dropdown-content {
     background: var(--bg-secondary);
     border: 1px solid var(--glass-border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 0.5rem;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.2);
 }
 
 @keyframes fadeIn {
@@ -223,7 +257,6 @@ canvas {
         opacity: 0;
         transform: translateY(-10px);
     }
-
     to {
         opacity: 1;
         transform: translateY(0);
@@ -239,7 +272,7 @@ canvas {
 
 /* --- Admin Filters --- */
 .filter-chip {
-    padding: 0.25rem 0.75rem;
+    padding: 0.35rem 0.85rem;
     border-radius: 99px;
     background: rgba(125, 125, 125, 0.1);
     border: 1px solid var(--glass-border);
@@ -247,6 +280,9 @@ canvas {
     color: var(--text-secondary);
     cursor: pointer;
     transition: 0.2s;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
 }
 
 .filter-chip.active {
@@ -259,10 +295,16 @@ canvas {
 .recording-card-big {
     transition: all 0.3s ease;
     border: 1px solid var(--glass-border);
-    min-height: 140px;
+    min-height: 130px;
     display: flex;
     flex-direction: column;
     justify-content: center;
+}
+
+@media (min-width: 768px) {
+    .recording-card-big {
+        min-height: 150px;
+    }
 }
 
 .recording-card-big:hover {
@@ -276,27 +318,16 @@ canvas {
 @keyframes fadeInSlide {
     from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(16px);
     }
-
     to {
         opacity: 1;
         transform: translateY(0);
     }
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-}
-
 .fade-in {
-    animation: fadeInSlide 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    animation: fadeInSlide 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 .page-transition {
@@ -306,18 +337,20 @@ canvas {
 /* --- Mobile Bottom Navigation --- */
 .mobile-nav {
     position: fixed;
-    bottom: 12px;
-    left: 12px;
-    right: 12px;
+    bottom: calc(10px + var(--safe-bottom));
+    left: calc(10px + var(--safe-left));
+    right: calc(10px + var(--safe-right));
+    max-width: 580px;
+    margin: 0 auto;
     background: var(--bg-card);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid var(--glass-border);
     border-radius: 24px;
-    padding: 0.6rem 0.3rem;
+    padding: 0.4rem 0.25rem;
     z-index: 999;
     display: none;
-    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.35);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -325,21 +358,23 @@ canvas {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 0.15rem;
     color: var(--text-secondary);
     font-size: 0.6rem;
     font-weight: 700;
     transition: all 0.2s ease;
     cursor: pointer;
-    padding: 0.5rem 0.25rem;
+    padding: 0.4rem 0.2rem;
     border-radius: 16px;
     flex: 1;
     text-align: center;
+    min-height: 44px;
 }
 
 .mobile-nav-item.active {
     color: var(--primary-light);
-    background: rgba(79, 70, 229, 0.08);
+    background: rgba(79, 70, 229, 0.12);
 }
 
 .mobile-nav-item:hover {
@@ -352,11 +387,55 @@ canvas {
 
 @media (max-width: 768px) {
     .mobile-nav {
-        display: block;
+        display: flex;
     }
 
     body {
-        padding-bottom: 96px;
+        padding-bottom: calc(88px + var(--safe-bottom));
+    }
+}
+
+/* --- Tablet / iPad Specific Optimizations (769px - 1024px) --- */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .container {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+    
+    .mobile-nav {
+        display: none;
+    }
+}
+
+/* --- Smart Board / 4K / Large Screens (> 1920px) --- */
+@media (min-width: 1921px) {
+    .container {
+        max-width: 1800px;
+    }
+
+    .smart-card {
+        padding: 2rem;
+        border-radius: 28px;
+    }
+
+    .btn-primary {
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+        border-radius: 16px;
+        min-height: 52px;
+    }
+}
+
+/* --- Small Mobile Phones (<= 380px) --- */
+@media (max-width: 380px) {
+    .smart-card {
+        padding: 0.85rem;
+        border-radius: 16px;
+    }
+
+    .mobile-nav-item {
+        font-size: 0.55rem;
+        padding: 0.3rem 0.1rem;
     }
 }
 
@@ -367,17 +446,14 @@ canvas {
     color: white !important;
     font-weight: 700 !important;
     box-shadow: 0 8px 20px rgba(79, 70, 229, 0.4) !important;
-    transform: scale(1.05);
+    transform: scale(1.03);
     animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
-
-    0%,
-    100% {
+    0%, 100% {
         box-shadow: 0 8px 20px rgba(79, 70, 229, 0.4);
     }
-
     50% {
         box-shadow: 0 8px 30px rgba(79, 70, 229, 0.6);
     }
@@ -393,12 +469,9 @@ canvas {
 }
 
 @keyframes bounce {
-
-    0%,
-    100% {
+    0%, 100% {
         transform: translateY(0);
     }
-
     50% {
         transform: translateY(-5px);
     }
@@ -442,14 +515,33 @@ canvas {
         transform: scale(0.95);
         box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
     }
-
     50% {
         transform: scale(1.1);
         box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
     }
-
     100% {
         transform: scale(0.95);
         box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
     }
 }
+
+/* ========================================================================= */
+/* ===== EXAM TIMETABLE POPUP CODE - START (REMOVE LATER IF NOT NEEDED) ===== */
+/* ========================================================================= */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.3);
+    border-radius: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(99, 102, 241, 0.6);
+}
+/* ========================================================================= */
+/* ===== EXAM TIMETABLE POPUP CODE - END (REMOVE LATER IF NOT NEEDED) ======= */
+/* ========================================================================= */

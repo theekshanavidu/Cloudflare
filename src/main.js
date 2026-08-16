@@ -10,11 +10,21 @@ let currentUser = null;
 function navigateTo(path) {
     if (window.location.pathname === path) return;
     window.history.pushState({}, '', path);
+    try {
+        if (path && path !== '/' && path !== '/welcome' && path !== '/login' && path !== '/register') {
+            sessionStorage.setItem('study_last_active_path', path);
+        }
+    } catch (e) {}
     router();
 }
 
 async function router() {
     const path = window.location.pathname === '/' ? '/home' : window.location.pathname;
+    try {
+        if (path && path !== '/' && path !== '/welcome' && path !== '/login' && path !== '/register') {
+            sessionStorage.setItem('study_last_active_path', path);
+        }
+    } catch (e) {}
     console.log(`Navigating to: ${path}`);
     
     // Clean up chemistry game if we're navigating away
@@ -53,6 +63,10 @@ async function router() {
             UI.renderContact(navigateTo, currentUser);
             animatePageIn();
             return;
+        } else if (path === '/resources') {
+            UI.renderResources(navigateTo);
+            animatePageIn();
+            return;
         }
 
         // Protected Routes
@@ -85,6 +99,13 @@ async function router() {
 
         if (path === '/home') {
             await UI.renderHome(currentUser);
+            /* ========================================================================= */
+            /* ===== EXAM TIMETABLE POPUP CODE - START (LABEL FOR EASY REMOVAL) ===== */
+            /* ========================================================================= */
+            UI.checkExamTimetablePopup(currentUser);
+            /* ========================================================================= */
+            /* ===== EXAM TIMETABLE POPUP CODE - END (LABEL FOR EASY REMOVAL) ======= ===== */
+            /* ========================================================================= */
         } else if (path === '/organicgame') {
             await UI.renderOrganicGame();
         } else if (path === '/profile') {
@@ -226,6 +247,13 @@ window.addEventListener('load', () => {
             UI.trackUserActivity(currentUser.uid);
             UI.listenForNotifications(currentUser);
             UI.checkNewYearPopup(currentUser);
+            /* ========================================================================= */
+            /* ===== EXAM TIMETABLE POPUP CODE - START (LABEL FOR EASY REMOVAL) ===== */
+            /* ========================================================================= */
+            UI.checkExamTimetablePopup(currentUser);
+            /* ========================================================================= */
+            /* ===== EXAM TIMETABLE POPUP CODE - END (LABEL FOR EASY REMOVAL) ======= ===== */
+            /* ========================================================================= */
             if (window.checkAndDisplayGlobalNotification) window.checkAndDisplayGlobalNotification(currentUser);
             await requestNotificationPermission();
         } else {
@@ -242,7 +270,14 @@ window.addEventListener('load', () => {
 
         // Redirect if on root or welcome and logged in
         if ((!window.location.pathname || window.location.pathname === '/' || window.location.pathname === '/welcome') && currentUser) {
-            navigateTo('/home');
+            let targetPath = '/home';
+            try {
+                const savedPath = sessionStorage.getItem('study_last_active_path');
+                if (savedPath && savedPath !== '/' && savedPath !== '/welcome' && savedPath !== '/login' && savedPath !== '/register') {
+                    targetPath = savedPath;
+                }
+            } catch (e) {}
+            navigateTo(targetPath);
         } else {
             router();
         }

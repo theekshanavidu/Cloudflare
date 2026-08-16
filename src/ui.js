@@ -372,10 +372,10 @@ function showFloatingModal(content) {
   else {
     const modal = document.createElement('div');
     modal.id = "floating-modal-container";
-    modal.className = "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in zoom-in duration-300";
+    modal.className = "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4 animate-in fade-in zoom-in duration-300";
     modal.innerHTML = `
-            <div class="smart-card relative max-w-lg w-full m-4 shadow-2xl bg-[var(--bg-secondary)]">
-                <button onclick="document.getElementById('floating-modal-container').classList.add('hidden')" class="absolute top-4 right-4 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-2xl font-bold">&times;</button>
+            <div class="smart-card relative max-w-lg w-full max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl bg-[var(--bg-secondary)] p-4 sm:p-6">
+                <button onclick="document.getElementById('floating-modal-container').classList.add('hidden')" class="absolute top-3 right-3 sm:top-4 sm:right-4 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--glass-border)] transition-colors z-10">&times;</button>
                 <div id="modal-content">${content}</div>
             </div>
         `;
@@ -406,10 +406,10 @@ export async function renderHeader(user, navigate, logout) {
   const path = window.location.pathname;
   const getNavClass = (p) => {
     const active = path === p || (p === '/recordings' && path.startsWith('/recording/'));
-    return `px-5 py-2 rounded-full font-semibold text-sm transition-all duration-300 ${active ? 'bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-md scale-105 border border-[var(--glass-border)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] hover:shadow-md'}`;
+    return `px-3 lg:px-5 py-1.5 lg:py-2 rounded-full font-semibold text-xs lg:text-sm transition-all duration-300 whitespace-nowrap ${active ? 'bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-md scale-105 border border-[var(--glass-border)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] hover:shadow-md'}`;
   };
   const adminActive = path === '/adminpanel';
-  const adminClass = `px-5 py-2 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md hover:shadow-lg font-bold text-sm transition-all duration-300 flex items-center gap-1 ${adminActive ? 'ring-2 ring-offset-2 ring-indigo-500 ring-offset-[var(--bg-root)] scale-105' : 'hover:scale-105'}`;
+  const adminClass = `px-3 lg:px-5 py-1.5 lg:py-2 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md hover:shadow-lg font-bold text-xs lg:text-sm transition-all duration-300 flex items-center gap-1 whitespace-nowrap ${adminActive ? 'ring-2 ring-offset-2 ring-indigo-500 ring-offset-[var(--bg-root)] scale-105' : 'hover:scale-105'}`;
 
   headerElement.innerHTML = `
         <div class="flex items-center gap-3 cursor-pointer" onclick="navigateTo('/home')">
@@ -425,6 +425,7 @@ export async function renderHeader(user, navigate, logout) {
             <button class="${getNavClass('/recordings')}" onclick="navigateTo('/recordings')">Lectures</button>
             <button class="${getNavClass('/contact')}" onclick="navigateTo('/contact')">Contact Us</button>
             <button class="${getNavClass('/simulation')}" onclick="navigateTo('/simulation')">Simulation</button>
+            <button class="${getNavClass('/resources')}" onclick="navigateTo('/resources')">Resources Web</button>
             ${user.uid === ADMIN_UID ? `<button class="${adminClass}" onclick="navigateTo('/adminpanel')"><span>Admin</span> <span class="text-xs">🛡️</span></button>` : ''}
         </nav>
 
@@ -751,38 +752,47 @@ export async function renderHome(user) {
   appContainer.innerHTML = `
         <div class="max-w-7xl mx-auto pt-8 pb-12">
             <!-- Exam Countdown Card -->
-            <div class="mb-8 p-6 rounded-2xl bg-gradient-to-r from-indigo-950/70 via-slate-900/80 to-purple-950/70 border border-indigo-500/20 shadow-xl shadow-indigo-950/20 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="mb-8 p-4 sm:p-6 rounded-2xl bg-gradient-to-r from-indigo-950/70 via-slate-900/80 to-purple-950/70 border border-indigo-500/20 shadow-xl shadow-indigo-950/20 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
                 <!-- Decorative absolute glowing shapes -->
                 <div class="absolute -right-20 -top-20 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
                 <div class="absolute -left-20 -bottom-20 w-60 h-60 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
                 
-                <div class="flex items-center gap-4 relative z-10">
-                    <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-2xl shadow-inner">
+                <div class="flex items-center gap-4 relative z-10 w-full md:w-auto justify-start">
+                    <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-2xl shadow-inner shrink-0">
                         ⏳
                     </div>
                     <div>
                         <h2 class="text-xs uppercase tracking-widest text-indigo-400 font-extrabold">Exam Countdown</h2>
-                        <h3 class="text-xl font-black text-[var(--text-primary)]">2026 A/L Exam</h3>
+                        <h3 class="text-lg sm:text-xl font-black text-[var(--text-primary)]">2026 A/L Exam</h3>
                         <p class="text-xs text-[var(--text-secondary)] mt-0.5">Target Date: August 10, 2026</p>
+                        <!-- ========================================================================= -->
+                        <!-- ===== EXAM TIMETABLE POPUP CODE - START (LABEL FOR EASY REMOVAL) ===== -->
+                        <!-- ========================================================================= -->
+                        <button onclick="window.showExamTimetablePopup()" class="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 transition-all cursor-pointer">
+                            📅 කාලසටහන (Timetable)
+                        </button>
+                        <!-- ========================================================================= -->
+                        <!-- ===== EXAM TIMETABLE POPUP CODE - END (LABEL FOR EASY REMOVAL) ======= ===== -->
+                        <!-- ========================================================================= -->
                     </div>
                 </div>
 
                 <!-- Timer Blocks -->
-                <div id="exam-countdown-timer" class="flex gap-2 sm:gap-4 relative z-10">
-                    <div class="flex flex-col items-center min-w-[64px] p-2 bg-black/40 backdrop-blur-md rounded-xl border border-[var(--glass-border)]">
-                        <span id="countdown-days" class="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-indigo-200">00</span>
+                <div id="exam-countdown-timer" class="flex flex-wrap sm:flex-nowrap justify-center gap-2 sm:gap-4 relative z-10 w-full md:w-auto">
+                    <div class="flex flex-col items-center flex-1 sm:flex-initial min-w-[56px] sm:min-w-[64px] p-2 bg-black/40 backdrop-blur-md rounded-xl border border-[var(--glass-border)]">
+                        <span id="countdown-days" class="text-xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-indigo-200">00</span>
                         <span class="text-[9px] uppercase tracking-wider text-[var(--text-secondary)] font-bold mt-1">Days</span>
                     </div>
-                    <div class="flex flex-col items-center min-w-[64px] p-2 bg-black/40 backdrop-blur-md rounded-xl border border-[var(--glass-border)]">
-                        <span id="countdown-hours" class="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-indigo-200">00</span>
+                    <div class="flex flex-col items-center flex-1 sm:flex-initial min-w-[56px] sm:min-w-[64px] p-2 bg-black/40 backdrop-blur-md rounded-xl border border-[var(--glass-border)]">
+                        <span id="countdown-hours" class="text-xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-indigo-200">00</span>
                         <span class="text-[9px] uppercase tracking-wider text-[var(--text-secondary)] font-bold mt-1">Hours</span>
                     </div>
-                    <div class="flex flex-col items-center min-w-[64px] p-2 bg-black/40 backdrop-blur-md rounded-xl border border-[var(--glass-border)]">
-                        <span id="countdown-mins" class="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-indigo-200">00</span>
+                    <div class="flex flex-col items-center flex-1 sm:flex-initial min-w-[56px] sm:min-w-[64px] p-2 bg-black/40 backdrop-blur-md rounded-xl border border-[var(--glass-border)]">
+                        <span id="countdown-mins" class="text-xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-indigo-200">00</span>
                         <span class="text-[9px] uppercase tracking-wider text-[var(--text-secondary)] font-bold mt-1">Mins</span>
                     </div>
-                    <div class="flex flex-col items-center min-w-[64px] p-2 bg-black/40 backdrop-blur-md rounded-xl border border-[var(--glass-border)]">
-                        <span id="countdown-secs" class="text-2xl sm:text-3xl font-black text-rose-400">00</span>
+                    <div class="flex flex-col items-center flex-1 sm:flex-initial min-w-[56px] sm:min-w-[64px] p-2 bg-black/40 backdrop-blur-md rounded-xl border border-[var(--glass-border)]">
+                        <span id="countdown-secs" class="text-xl sm:text-3xl font-black text-rose-400">00</span>
                         <span class="text-[9px] uppercase tracking-wider text-rose-400/80 font-bold mt-1">Secs</span>
                     </div>
                 </div>
@@ -1750,8 +1760,14 @@ let timetableCacheTime = {};
 const CACHE_DURATION = 30000; // 30 seconds
 
 export async function renderTimetable(user) {
-  const hours = Array.from({ length: 16 }, (_, i) => i + 6);
+  const hours = Array.from({ length: 24 }, (_, i) => i);
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  const formatHour = (h) => {
+    if (h === 0) return '12 AM';
+    if (h === 12) return '12 PM';
+    return h > 12 ? `${h - 12} PM` : `${h} AM`;
+  };
 
   // Check cache first (user-specific)
   let data;
@@ -1767,36 +1783,44 @@ export async function renderTimetable(user) {
   }
 
   appContainer.innerHTML = `
-        <div class="max-w-7xl mx-auto pt-8">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-3xl font-bold text-[var(--text-primary)]">Time Table 📅</h2>
-                <div class="flex gap-2">
-                    <button id="tt-save" class="btn-primary text-sm px-4">Save Changes</button>
-                    <button id="tt-pdf" class="btn-ghost border border-[var(--glass-border)] text-sm px-4">Export PDF</button>
+        <div class="max-w-7xl mx-auto pt-8 pb-16">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                    <h2 class="text-3xl font-bold text-[var(--text-primary)]">24-Hour Time Table 📅</h2>
+                    <p class="text-sm text-[var(--text-secondary)] mt-1">Plan and manage your entire 24-hour study and routine schedule.</p>
+                </div>
+                <div class="flex gap-2 w-full sm:w-auto">
+                    <button id="tt-save" class="btn-primary text-sm px-5 flex-1 sm:flex-initial shadow-md">Save Changes</button>
+                    <button id="tt-pdf" class="btn-ghost border border-[var(--glass-border)] text-sm px-5 flex-1 sm:flex-initial">Export PDF</button>
                 </div>
             </div>
             
-            <div class="smart-card p-0 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="smart-table min-w-max">
-                        <thead class="bg-[var(--bg-secondary)] text-[var(--primary)]">
+            <div class="smart-card p-0 overflow-hidden shadow-xl border border-[var(--glass-border)]">
+                <div class="overflow-x-auto max-h-[75vh] custom-scrollbar">
+                    <table class="smart-table min-w-full text-left border-collapse">
+                        <thead class="bg-[var(--bg-secondary)] text-[var(--primary-light)] sticky top-0 z-20 backdrop-blur-md shadow-sm">
                             <tr>
-                                <th class="w-24 text-center">Time</th>
-                                ${days.map(d => `<th class="text-center">${d}</th>`).join('')}
+                                <th class="w-28 text-center py-3.5 px-3 font-bold border-b border-[var(--glass-border)]">Time</th>
+                                ${days.map(d => `<th class="text-center py-3.5 px-3 font-bold border-b border-[var(--glass-border)]">${d}</th>`).join('')}
                             </tr>
                         </thead>
-                        <tbody>
-                            ${hours.map(h => `
-                                <tr>
-                                    <td class="text-center font-bold text-[var(--text-secondary)] border-r border-[var(--glass-border)] bg-[var(--bg-root)]">
-                                        ${h === 12 ? '12 PM' : (h > 12 ? (h - 12) + ' PM' : h + ' AM')}
+                        <tbody class="divide-y divide-[var(--glass-border)]">
+                            ${hours.map(h => {
+                              const isNight = h >= 0 && h < 6;
+                              return `
+                                <tr class="${isNight ? 'bg-black/20' : ''} hover:bg-[var(--bg-secondary)]/50 transition-colors">
+                                    <td class="text-center font-bold text-xs sm:text-sm text-[var(--text-secondary)] border-r border-[var(--glass-border)] bg-[var(--bg-root)] py-2.5 px-2 whitespace-nowrap sticky left-0 z-10">
+                                        <span class="inline-block ${isNight ? 'text-indigo-400/80' : 'text-[var(--text-primary)]'}">${formatHour(h)}</span>
                                     </td>
                                     ${days.map((d, i) => {
-    const k = `tt_${i}_${h}`;
-    return `<td class="p-1"><input id="${k}" value="${data[k] || ''}" class="w-full bg-transparent border-none text-center outline-none text-sm placeholder-opacity-20 hover:bg-[var(--bg-root)] focus:bg-[var(--bg-root)] rounded transition-colors py-2" placeholder="-"></td>`;
-  }).join('')}
+                                        const k = `tt_${i}_${h}`;
+                                        return `<td class="p-1 border-r border-[var(--glass-border)] last:border-r-0">
+                                            <input id="${k}" value="${(data[k] || '').replace(/"/g, '&quot;')}" class="w-full bg-transparent border border-transparent hover:border-[var(--glass-border)] focus:border-indigo-500 text-center outline-none text-xs sm:text-sm placeholder-opacity-20 hover:bg-[var(--bg-root)] focus:bg-[var(--bg-root)] rounded-lg transition-all py-2 px-1 text-[var(--text-primary)]" placeholder="-">
+                                        </td>`;
+                                    }).join('')}
                                 </tr>
-                            `).join('')}
+                            `;
+                            }).join('')}
                         </tbody>
                     </table>
                 </div>
@@ -1805,22 +1829,53 @@ export async function renderTimetable(user) {
     `;
 
   document.getElementById('tt-save').onclick = async () => {
-    const newData = {};
-    hours.forEach(h => days.forEach((d, i) => { const k = `tt_${i}_${h}`; const v = document.getElementById(k).value; if (v) newData[k] = v; }));
-    const docRef = doc(db, "timetable", user.uid);
-    await setDoc(docRef, newData);
-    // Update cache
-    timetableCache[user.uid] = newData;
-    timetableCacheTime[user.uid] = Date.now();
-    alert("Timetable Saved!");
+    const saveBtn = document.getElementById('tt-save');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+    try {
+        const newData = {};
+        hours.forEach(h => days.forEach((d, i) => {
+            const k = `tt_${i}_${h}`;
+            const el = document.getElementById(k);
+            if (el && el.value.trim()) newData[k] = el.value.trim();
+        }));
+        const docRef = doc(db, "timetable", user.uid);
+        await setDoc(docRef, newData);
+        timetableCache[user.uid] = newData;
+        timetableCacheTime[user.uid] = Date.now();
+        alert("Timetable Saved Successfully! \nකාලසටහන සාර්ථකව සුරැකිණි!");
+    } catch (e) {
+        console.error(e);
+        alert("Failed to save timetable: " + e.message);
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save Changes';
+    }
   };
 
   // PDF Logic
   document.getElementById('tt-pdf').onclick = () => {
+    if (typeof jspdf === 'undefined' || !jspdf.jsPDF) {
+        alert("PDF generator library is still loading. Please try again in a moment.");
+        return;
+    }
     const pdf = new jspdf.jsPDF('l', 'pt', 'a4');
-    const body = hours.map(h => [h > 12 ? h - 12 + ' PM' : h + ' AM', ...days.map((d, i) => document.getElementById(`tt_${i}_${h}`).value || '')]);
-    pdf.autoTable({ head: [['Time', ...days]], body, theme: 'grid', styles: { fillColor: [30, 41, 59], textColor: 255 }, headStyles: { fillColor: [79, 70, 229] } });
-    pdf.save('TimeTable.pdf');
+    const body = hours.map(h => [
+        formatHour(h),
+        ...days.map((d, i) => {
+            const el = document.getElementById(`tt_${i}_${h}`);
+            return el ? el.value : '';
+        })
+    ]);
+    pdf.autoTable({
+        head: [['Time', ...days]],
+        body,
+        theme: 'grid',
+        styles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 7, cellPadding: 3 },
+        headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold', halign: 'center' },
+        columnStyles: { 0: { halign: 'center', fontStyle: 'bold', fillColor: [30, 41, 59] } }
+    });
+    pdf.save('TimeTable_24Hours.pdf');
   };
 }
 
@@ -1919,6 +1974,10 @@ export async function openLessonPage(subject, type, day, user) {
     headingText = 'Midnight Session Videos';
   } else if (subject === 'vikum-maths' && type === 'video') {
     headingText = 'Supportive Program Videos';
+  } else if (type === 'final-revise') {
+    headingText = `${parseInt(day)} Month Content`;
+  } else if (subject === 'vikum-maths' && type === 'rapid') {
+    headingText = `${parseInt(day)} Month Content`;
   }
 
   appContainer.innerHTML = `
@@ -1994,7 +2053,7 @@ function renderContentCards(contentData, listElement, canEdit, lessonId) {
     const isLast = index === contentData.length - 1;
     return `
                 <div class="smart-card recording-card-big relative group p-0">
-                    <a href="${item.link}" target="_blank" class="flex flex-col items-center justify-center text-center h-full p-3 md:p-6 text-[var(--text-primary)]">
+                    <a href="${item.link}" target="_blank" rel="noopener noreferrer" class="flex flex-col items-center justify-center text-center h-full p-3 md:p-6 text-[var(--text-primary)]">
                         <div class="recording-icon-big text-2xl md:text-5xl mb-2 md:mb-4 text-indigo-400">▶</div>
                         <h3 class="text-xs md:text-xl font-bold mb-1 md:mb-2 group-hover:text-[var(--primary)] transition-colors line-clamp-2">${item.text}</h3>
                         <p class="text-[10px] md:text-xs text-[var(--text-secondary)]">Click to watch</p>
@@ -2355,7 +2414,7 @@ export function renderType(subject, navigate) {
         <div class="max-w-4xl mx-auto pt-12 text-center">
             <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-4 uppercase tracking-widest">Combine Maths</h2>
             <p class="text-sm text-[var(--text-secondary)] mb-8">Vikum Harshana</p>
-            <div class="grid grid-cols-2 gap-4 mt-12 max-w-xl mx-auto">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-12 max-w-4xl mx-auto">
                 <div onclick="navigateTo('/recording/vikum-maths/supportive')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
                     <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">🤝</div>
                     <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Maths Supportive</h3>
@@ -2363,6 +2422,14 @@ export function renderType(subject, navigate) {
                 <div onclick="navigateTo('/recording/vikum-maths/revision')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
                     <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">🔄</div>
                     <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Revision</h3>
+                </div>
+                <div onclick="navigateTo('/recording/vikum-maths/rapid')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
+                    <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">⚡</div>
+                    <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Rapid Revision</h3>
+                </div>
+                <div onclick="navigateTo('/recording/vikum-maths/final-revise')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8">
+                    <div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">🎯</div>
+                    <h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Final Revise</h3>
                 </div>
             </div>
         </div>
@@ -2412,6 +2479,9 @@ export function renderType(subject, navigate) {
   ];
   if (subject === 'chemistry') {
     items.push({ id: 'midnight', icon: '🌙', label: 'Midnight Session' });
+  }
+  if (subject === 'physics') {
+    items.push({ id: 'final-revise', icon: '🎯', label: 'Final Revise' });
   }
 
   const gridColsClass = items.length === 5 ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-5' : 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-4';
@@ -2486,8 +2556,15 @@ export async function renderLessons(subject, type, navigate, user) {
   if (subject === 'vikum-maths' && type === 'revision') {
     maxLessons = 30;
   }
+  if (type === 'final-revise') {
+    maxLessons = 2;
+  }
+  if (subject === 'vikum-maths' && type === 'rapid') {
+    maxLessons = 5;
+  }
 
-  const gridClass = isRapid ? "grid grid-cols-1 max-w-lg mx-auto gap-4 mt-8" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
+  const isRapidSingle = isRapid && !(subject === 'vikum-maths' && type === 'rapid');
+  const gridClass = isRapidSingle ? "grid grid-cols-1 max-w-lg mx-auto gap-4 mt-8" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
   
   let displayType = type.replace('-', ' ');
   if (type === 'midnight-video') displayType = 'Midnight Session Video';
@@ -2522,18 +2599,28 @@ export async function renderLessons(subject, type, navigate, user) {
   for (let i = 1; i <= maxLessons; i++) {
     const day = String(i).padStart(2, "0");
     let defaultTitle;
-    if (isRapid) defaultTitle = "Rapid Revision Content";
-    else if (isUnitBased) defaultTitle = `Unit ${day}`;
-    else defaultTitle = `Day ${day} Lesson`;
+    if (type === 'final-revise') {
+      defaultTitle = `${i} Month`;
+    } else if (subject === 'vikum-maths' && type === 'rapid') {
+      defaultTitle = `${i} Month`;
+    } else if (isRapid) {
+      defaultTitle = "Rapid Revision Content";
+    } else if (isUnitBased) {
+      defaultTitle = `Unit ${day}`;
+    } else {
+      defaultTitle = `Day ${day} Lesson`;
+    }
 
     const title = lessonMap[day] || defaultTitle;
+    const useBigCard = isRapid || type === 'final-revise';
     const card = document.createElement('div');
     
-    if (isRapid) {
+    if (useBigCard) {
+        const icon = type === 'final-revise' ? '🎯' : '⚡';
         card.className = "smart-card p-8 flex flex-col justify-center items-center group cursor-pointer hover:border-indigo-500 transition-colors text-center shadow-lg relative";
         card.innerHTML = `
             <div class="w-full" onclick="navigateTo('/recording/${subject}/${type}/lesson${day}')">
-                <div class="w-20 h-20 mx-auto rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-4xl mb-4 group-hover:scale-110 transition-transform">⚡</div>
+                <div class="w-20 h-20 mx-auto rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-4xl mb-4 group-hover:scale-110 transition-transform">${icon}</div>
                 <h3 class="text-2xl font-bold text-[var(--text-primary)]">${title}</h3>
                 <p class="text-sm text-[var(--text-secondary)] mt-2">Click to view content</p>
             </div>
@@ -2545,7 +2632,7 @@ export async function renderLessons(subject, type, navigate, user) {
 
     if (canEdit) {
       const btn = document.createElement('button');
-      if (isRapid) {
+      if (useBigCard) {
           btn.innerHTML = `✎ Edit Title`;
           btn.className = "mt-6 text-indigo-400 hover:text-yellow-400 hover:bg-slate-800 p-2 px-4 font-bold bg-indigo-500/10 rounded-lg transition-colors border border-indigo-500/30";
           card.appendChild(btn);
@@ -2584,6 +2671,7 @@ export function updateMobileNav(currentPath) {
   const isAdmin = currentPath === '/adminpanel';
   const isSimulation = currentPath === '/simulation' || currentPath === '/organicgame';
   const isContact = currentPath === '/contact';
+  const isResources = currentPath === '/resources';
 
   const nav = document.createElement('div');
   nav.id = 'mobile-nav';
@@ -2605,6 +2693,10 @@ export function updateMobileNav(currentPath) {
       <div class="mobile-nav-item ${isRecordings ? 'active' : ''}" onclick="navigateTo('/recordings')">
         <span class="text-xl">🎥</span>
         <span class="text-[0.55rem] mt-0.5 font-bold">Lectures</span>
+      </div>
+      <div class="mobile-nav-item ${isResources ? 'active' : ''}" onclick="navigateTo('/resources')">
+        <span class="text-xl">🌐</span>
+        <span class="text-[0.55rem] mt-0.5 font-bold">Web</span>
       </div>
       <div class="mobile-nav-item ${isContact ? 'active' : ''}" onclick="navigateTo('/contact')">
         <span class="text-xl">💬</span>
@@ -2957,3 +3049,352 @@ export async function renderOrganicGame() {
     appContainer.innerHTML = `<div class="text-center p-8 text-red-500">Failed to load game environment.</div>`;
   }
 }
+
+export function renderResources(navigate) {
+  const appContainer = document.getElementById('app-container');
+  appContainer.innerHTML = `
+    <div class="max-w-6xl mx-auto pt-8 pb-12 px-4">
+      <div class="text-center mb-12 fade-in">
+        <h1 class="text-4xl md:text-5xl font-extrabold text-[var(--text-primary)] mb-4 tracking-tight">
+          <span class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">Resources Web</span>
+        </h1>
+        <p class="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto">
+          Explore and access Combined Mathematics, Physics resources, web systems, and mobile applications from MathsRecoding.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 fade-in">
+        <!-- Card 1: Combine Paper Marking -->
+        <a href="https://combine.mathsrecoding.com" target="_blank" class="smart-card group hover:border-indigo-500/50 transition-all flex flex-col justify-between h-full relative overflow-hidden bg-gradient-to-br from-slate-900/40 to-slate-950/20 backdrop-blur-xl border border-white/5 shadow-2xl p-6 rounded-2xl hover:-translate-y-2 duration-300">
+          <div class="absolute -top-10 -right-10 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl group-hover:bg-indigo-500/20 transition-all duration-300"></div>
+          <div>
+            <div class="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-3xl mb-5 border border-indigo-500/20 group-hover:scale-110 transition-transform duration-300">
+              📝
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2 group-hover:text-indigo-400 transition-colors">
+              Combine Paper Marking
+            </h3>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Access the official Combined Mathematics Paper Marking resources. Track guidelines, schemes, and evaluations.
+            </p>
+          </div>
+          <div class="flex items-center text-indigo-400 font-semibold text-sm group-hover:translate-x-1 transition-transform">
+            Visit Website <span class="ml-2">→</span>
+          </div>
+        </a>
+
+        <!-- Card 2: Physics F To A plan AP -->
+        <a href="https://physics.mathsrecoding.com" target="_blank" class="smart-card group hover:border-pink-500/50 transition-all flex flex-col justify-between h-full relative overflow-hidden bg-gradient-to-br from-slate-900/40 to-slate-950/20 backdrop-blur-xl border border-white/5 shadow-2xl p-6 rounded-2xl hover:-translate-y-2 duration-300">
+          <div class="absolute -top-10 -right-10 w-24 h-24 bg-pink-500/10 rounded-full blur-2xl group-hover:bg-pink-500/20 transition-all duration-300"></div>
+          <div>
+            <div class="w-14 h-14 rounded-2xl bg-pink-500/10 flex items-center justify-center text-3xl mb-5 border border-pink-500/20 group-hover:scale-110 transition-transform duration-300">
+              ⚛️
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2 group-hover:text-pink-400 transition-colors">
+              Physics F To A plan AP
+            </h3>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Boost your Physics grades with the structured F To A study plan. Complete resources for theory, revisions, and exam prep.
+            </p>
+          </div>
+          <div class="flex items-center text-pink-400 font-semibold text-sm group-hover:translate-x-1 transition-transform">
+            Visit Website <span class="ml-2">→</span>
+          </div>
+        </a>
+
+        <!-- Card 3: Time Reminder Site -->
+        <a href="https://time.mathsrecoding.com" target="_blank" class="smart-card group hover:border-cyan-500/50 transition-all flex flex-col justify-between h-full relative overflow-hidden bg-gradient-to-br from-slate-900/40 to-slate-950/20 backdrop-blur-xl border border-white/5 shadow-2xl p-6 rounded-2xl hover:-translate-y-2 duration-300">
+          <div class="absolute -top-10 -right-10 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition-all duration-300"></div>
+          <div>
+            <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-3xl mb-5 border border-cyan-500/20 group-hover:scale-110 transition-transform duration-300">
+              ⏰
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2 group-hover:text-cyan-400 transition-colors">
+              Time Reminder Site
+            </h3>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Online scheduling and tracking system. Organize your alarms, reminders, and study plans efficiently from any web browser.
+            </p>
+          </div>
+          <div class="flex items-center text-cyan-400 font-semibold text-sm group-hover:translate-x-1 transition-transform">
+            Visit Website <span class="ml-2">→</span>
+          </div>
+        </a>
+
+        <!-- Card 4: Time Reminder Android App -->
+        <a href="/Edu.apk" download class="smart-card group hover:border-emerald-500/50 transition-all flex flex-col justify-between h-full relative overflow-hidden bg-gradient-to-br from-slate-900/40 to-slate-950/20 backdrop-blur-xl border border-white/5 shadow-2xl p-6 rounded-2xl hover:-translate-y-2 duration-300">
+          <div class="absolute -top-10 -right-10 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all duration-300"></div>
+          <div>
+            <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-3xl mb-5 border border-emerald-500/20 group-hover:scale-110 transition-transform duration-300">
+              📲
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors">
+              Time Reminder Android App
+            </h3>
+            <span class="absolute top-4 right-4 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold text-[10px] px-2 py-0.5 rounded-full">
+              APK Download
+            </span>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Download the official Time Reminder Android Application. Stay connected to your studies with local notifications and alarms.
+            </p>
+          </div>
+          <div class="flex items-center text-emerald-400 font-semibold text-sm group-hover:translate-x-1 transition-transform">
+            Download App <span class="ml-2">↓</span>
+          </div>
+        </a>
+      </div>
+    </div>
+  `;
+}
+
+/* ========================================================================= */
+/* ===== EXAM TIMETABLE POPUP CODE - START (LABEL FOR EASY REMOVAL) ===== */
+/* ========================================================================= */
+
+const EXAM_TIMETABLE_DATA = [
+  { id: 'cm1', subject: 'Combine Maths I', dateStr: 'අගෝස්තු 10', timeStr: '08.30 - 11.40', start: new Date(2026, 7, 10, 8, 30), end: new Date(2026, 7, 10, 11, 40), tag: 'Maths' },
+  { id: 'cm2', subject: 'Combine Maths II', dateStr: 'අගෝස්තු 12', timeStr: '08.30 - 11.40', start: new Date(2026, 7, 12, 8, 30), end: new Date(2026, 7, 12, 11, 40), tag: 'Maths' },
+  
+  { id: 'bio1', subject: 'Biology I', dateStr: 'අගෝස්තු 10', timeStr: '13.00 - 15.00', start: new Date(2026, 7, 10, 13, 0), end: new Date(2026, 7, 10, 15, 0), tag: 'Biology' },
+  { id: 'bio2', subject: 'Biology II', dateStr: 'අගෝස්තු 11', timeStr: '13.00 - 16.10', start: new Date(2026, 7, 11, 13, 0), end: new Date(2026, 7, 11, 16, 10), tag: 'Biology' },
+
+  { id: 'phy1', subject: 'Physics I', dateStr: 'අගෝස්තු 14', timeStr: '08.30 - 10.30', start: new Date(2026, 7, 14, 8, 30), end: new Date(2026, 7, 14, 10, 30), tag: 'Physics' },
+  { id: 'phy2', subject: 'Physics II', dateStr: 'අගෝස්තු 17', timeStr: '08.30 - 11.40', start: new Date(2026, 7, 17, 8, 30), end: new Date(2026, 7, 17, 11, 40), tag: 'Physics' },
+
+  { id: 'chem1', subject: 'Chemistry I', dateStr: 'අගෝස්තු 19', timeStr: '08.30 - 10.30', start: new Date(2026, 7, 19, 8, 30), end: new Date(2026, 7, 19, 10, 30), tag: 'Chemistry' },
+  { id: 'chem2', subject: 'Chemistry II', dateStr: 'අගෝස්තු 21', timeStr: '08.30 - 11.40', start: new Date(2026, 7, 21, 8, 30), end: new Date(2026, 7, 21, 11, 40), tag: 'Chemistry' },
+
+  { id: 'eng1', subject: 'General English I', dateStr: 'අගෝස්තු 24', timeStr: '13.00 - 14.00', start: new Date(2026, 7, 24, 13, 0), end: new Date(2026, 7, 24, 14, 0), tag: 'English' },
+  { id: 'eng2', subject: 'General English II', dateStr: 'අගෝස්තු 24', timeStr: '08.30 - 11.40', start: new Date(2026, 7, 24, 8, 30), end: new Date(2026, 7, 24, 11, 40), tag: 'English' },
+
+  { id: 'ict1', subject: 'ICT I', dateStr: 'අගෝස්තු 29', timeStr: '13.00 - 15.00', start: new Date(2026, 7, 29, 13, 0), end: new Date(2026, 7, 29, 15, 0), tag: 'ICT' },
+  { id: 'ict2', subject: 'ICT II', dateStr: 'සැප්තැම්බර් 01', timeStr: '08.30 - 11.40', start: new Date(2026, 8, 1, 8, 30), end: new Date(2026, 8, 1, 11, 40), tag: 'ICT' },
+
+  { id: 'ct', subject: 'Common Test', dateStr: 'අගෝස්තු 22', timeStr: '08.30 - 10.30', start: new Date(2026, 7, 22, 8, 30), end: new Date(2026, 7, 22, 10, 30), tag: 'General', isFullWidth: true }
+];
+
+let examPopupTimerId = null;
+
+function calculateExamHoursInfo(exam, now = new Date()) {
+    const startMs = exam.start.getTime();
+    const endMs = exam.end.getTime();
+    const nowMs = now.getTime();
+
+    if (nowMs > endMs) {
+        return {
+            status: 'completed',
+            isUpcoming: false,
+            badgeHtml: `
+                <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 text-slate-400 border border-slate-700 text-xs font-bold">
+                    <span>✅ අවසන් (Finished)</span>
+                </div>
+            `
+        };
+    }
+
+    if (nowMs >= startMs && nowMs <= endMs) {
+        return {
+            status: 'ongoing',
+            isUpcoming: false,
+            badgeHtml: `
+                <div class="inline-flex flex-col items-start sm:items-end px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+                    <span class="text-xs sm:text-sm font-black">⚡ දැනට පැවැත්වේ (Ongoing)</span>
+                    <span class="text-[10px]">ප්‍රශ්න පත්‍රයට පිළිතුරු ලියන වෙලාවයි</span>
+                </div>
+            `
+        };
+    }
+
+    const diffMs = startMs - nowMs;
+    const totalHoursInt = Math.floor(diffMs / (1000 * 60 * 60));
+    
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const hoursRem = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minsRem = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const secsRem = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+    const pad = (n) => String(n).padStart(2, '0');
+
+    let borderColor = totalHoursInt <= 24 
+        ? 'border-rose-500/40 bg-rose-500/10' 
+        : totalHoursInt <= 72 
+            ? 'border-amber-500/40 bg-amber-500/10' 
+            : 'border-indigo-500/30 bg-indigo-500/10';
+
+    let secColor = totalHoursInt <= 24 ? 'text-rose-400 border-rose-500/50' : 'text-cyan-400 border-cyan-500/50';
+
+    const badgeHtml = `
+        <div class="inline-flex flex-col items-start sm:items-end px-3 py-1.5 rounded-xl border ${borderColor} w-full sm:w-auto shadow-inner">
+            <div class="flex items-center gap-1 font-mono text-xs sm:text-sm font-black tracking-wider">
+                <span class="bg-black/60 px-1.5 py-0.5 rounded border border-white/10 text-white">${pad(days)}<span class="text-[9px] text-slate-400 font-normal ml-0.5">d</span></span>
+                <span class="text-slate-400 font-bold">:</span>
+                <span class="bg-black/60 px-1.5 py-0.5 rounded border border-white/10 text-white">${pad(hoursRem)}<span class="text-[9px] text-slate-400 font-normal ml-0.5">h</span></span>
+                <span class="text-slate-400 font-bold">:</span>
+                <span class="bg-black/60 px-1.5 py-0.5 rounded border border-white/10 text-white">${pad(minsRem)}<span class="text-[9px] text-slate-400 font-normal ml-0.5">m</span></span>
+                <span class="text-slate-400 font-bold">:</span>
+                <span class="bg-black/60 px-1.5 py-0.5 rounded border ${secColor} font-extrabold animate-pulse">${pad(secsRem)}<span class="text-[9px] opacity-80 font-normal ml-0.5">s</span></span>
+            </div>
+            <div class="text-[10px] font-bold text-indigo-300/90 mt-1">
+                ⏱️ තව පැය ${totalHoursInt} යි (Total: ${totalHoursInt} hrs)
+            </div>
+        </div>
+    `;
+
+    return {
+        status: 'upcoming',
+        isUpcoming: true,
+        badgeHtml
+    };
+}
+
+export function checkExamTimetablePopup(user) {
+    if (!user) return;
+    showExamTimetablePopup();
+}
+
+export function showExamTimetablePopup() {
+    const existingOverlay = document.getElementById('exam-timetable-overlay');
+    if (existingOverlay) existingOverlay.remove();
+
+    if (examPopupTimerId) {
+        clearInterval(examPopupTimerId);
+        examPopupTimerId = null;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'exam-timetable-overlay';
+    overlay.className = 'fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-5 transition-opacity duration-300 opacity-0';
+
+    const modal = document.createElement('div');
+    modal.className = 'bg-[#111827]/95 border border-indigo-500/30 w-full max-w-[95vw] md:max-w-4xl rounded-2xl shadow-2xl shadow-indigo-950/50 flex flex-col max-h-[90vh] overflow-hidden transform scale-95 transition-all duration-300 relative';
+
+    modal.innerHTML = `
+        <!-- Modal Header -->
+        <div class="p-4 sm:p-5 border-b border-white/10 bg-gradient-to-r from-indigo-950/80 via-slate-900 to-purple-950/80 relative flex items-center justify-between">
+            <div class="flex items-center gap-3 pr-8">
+                <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-xl shadow-inner shrink-0">
+                    ⏳
+                </div>
+                <div>
+                    <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 mb-1">
+                        A/L 2026 Live Countdown
+                    </div>
+                    <h2 class="text-lg sm:text-xl font-bold text-white leading-tight">විභාග කාලසටහන (Exam Schedule)</h2>
+                </div>
+            </div>
+            <!-- Close Button X -->
+            <button id="close-exam-popup-x" class="text-slate-400 hover:text-white bg-white/5 hover:bg-white/15 border border-white/10 w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0">
+                ✕
+            </button>
+        </div>
+
+        <!-- Wish Banner Top (Fixed, Unclipped) -->
+        <div class="px-4 py-3 sm:py-4 bg-gradient-to-r from-amber-500/20 via-indigo-950/90 to-purple-950/90 border-b border-amber-400/30 text-center relative shrink-0">
+            <h3 class="text-base sm:text-xl md:text-2xl font-black text-amber-300 drop-shadow-md flex items-center justify-center gap-2 flex-wrap leading-normal">
+                <span>🎓</span>
+                <span>Wish You All the Best for A/L 2026!</span>
+                <span>✨</span>
+            </h3>
+            <p class="text-xs sm:text-sm font-semibold text-slate-200 mt-1">
+                ඔබගේ උසස් පෙළ විභාගයට උණුසුම් සුභ පැතුම්!
+            </p>
+        </div>
+
+        <!-- Exam List Container (2 Columns on Desktop, 1 Column on Mobile) -->
+        <div id="exam-popup-list" class="p-3 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-3 overflow-y-auto max-h-[60vh] custom-scrollbar">
+            <!-- Timetable cards rendered dynamically -->
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-3 sm:p-4 border-t border-white/10 bg-slate-900/90 flex items-center justify-end">
+            <button id="close-exam-popup-btn" class="w-full sm:w-auto px-6 py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-600/30 transition-all cursor-pointer flex items-center justify-center gap-2">
+                <span>Close</span>
+                <span>✕</span>
+            </button>
+        </div>
+    `;
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    function renderListItems() {
+        const listContainer = document.getElementById('exam-popup-list');
+        if (!listContainer) return;
+
+        const now = new Date();
+
+        let html = '';
+
+        EXAM_TIMETABLE_DATA.forEach((exam) => {
+            const info = calculateExamHoursInfo(exam, now);
+
+            let tagColor = 'bg-slate-700/50 text-slate-300';
+            if (exam.tag === 'Maths') tagColor = 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+            if (exam.tag === 'Physics') tagColor = 'bg-purple-500/20 text-purple-300 border-purple-500/30';
+            if (exam.tag === 'Chemistry') tagColor = 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30';
+            if (exam.tag === 'Biology') tagColor = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+            if (exam.tag === 'ICT') tagColor = 'bg-pink-500/20 text-pink-300 border-pink-500/30';
+
+            const fullSpanClass = exam.isFullWidth ? 'md:col-span-2' : '';
+
+            html += `
+                <div class="p-3 sm:p-3.5 rounded-xl bg-slate-900/70 border border-slate-800 hover:border-indigo-500/30 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 ${fullSpanClass}">
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h4 class="font-bold text-sm sm:text-base text-slate-100">${exam.subject}</h4>
+                            <span class="text-[10px] px-2 py-0.5 rounded-md border font-semibold ${tagColor}">${exam.tag}</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-xs text-slate-400">
+                            <span class="flex items-center gap-1 font-medium text-indigo-300">
+                                📆 ${exam.dateStr}
+                            </span>
+                            <span class="flex items-center gap-1">
+                                ⏰ ${exam.timeStr}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Live Countdown Badge -->
+                    <div class="w-full sm:w-auto text-left sm:text-right shrink-0">
+                        ${info.badgeHtml}
+                    </div>
+                </div>
+            `;
+        });
+
+        listContainer.innerHTML = html;
+    }
+
+    renderListItems();
+    // Live update every 1 second (1000ms) for countdown ticker
+    examPopupTimerId = setInterval(renderListItems, 1000);
+
+    requestAnimationFrame(() => {
+        overlay.classList.remove('opacity-0');
+        modal.classList.remove('scale-95');
+    });
+
+    const closeHandler = () => {
+        if (examPopupTimerId) {
+            clearInterval(examPopupTimerId);
+            examPopupTimerId = null;
+        }
+        overlay.classList.add('opacity-0');
+        modal.classList.add('scale-95');
+        setTimeout(() => overlay.remove(), 300);
+    };
+
+    document.getElementById('close-exam-popup-x').onclick = closeHandler;
+    document.getElementById('close-exam-popup-btn').onclick = closeHandler;
+
+    overlay.onclick = (e) => {
+        if (e.target === overlay) closeHandler();
+    };
+}
+
+window.showExamTimetablePopup = showExamTimetablePopup;
+
+/* ========================================================================= */
+/* ===== EXAM TIMETABLE POPUP CODE - END (LABEL FOR EASY REMOVAL) ======= ===== */
+/* ========================================================================= */
+
