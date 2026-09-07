@@ -3,6 +3,10 @@ import { doc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/fire
 import { auth, db, ADMIN_UID } from "./firebase.js";
 import * as UI from "./ui.js";
 import { initParticles } from "./particles.js";
+import { initGlobalInputProtection } from "./security.js";
+
+// Initialize global real-time input sanitization & XSS protection
+initGlobalInputProtection();
 
 let currentUser = null;
 
@@ -10,16 +14,44 @@ let currentUser = null;
 function navigateTo(path) {
     if (window.location.pathname === path) return;
     window.history.pushState({}, '', path);
+    try {
+        if (path && path !== '/' && path !== '/welcome' && path !== '/login' && path !== '/register') {
+            sessionStorage.setItem('study_last_active_path', path);
+        }
+    } catch (e) {}
     router();
 }
 
 async function router() {
     const path = window.location.pathname === '/' ? '/home' : window.location.pathname;
+    try {
+        if (path && path !== '/' && path !== '/welcome' && path !== '/login' && path !== '/register') {
+            sessionStorage.setItem('study_last_active_path', path);
+        }
+    } catch (e) {}
     console.log(`Navigating to: ${path}`);
     
     // Clean up chemistry game if we're navigating away
     if (path !== '/organicgame' && window.unmountChemistryGame) {
         window.unmountChemistryGame();
+    }
+
+    // Clean up countdown intervals when navigating away
+    if (path !== '/login' && path !== '/register' && window.authCountdownInterval) {
+        clearInterval(window.authCountdownInterval);
+        window.authCountdownInterval = null;
+    }
+    if (path !== '/home' && window.examCountdownInterval) {
+        clearInterval(window.examCountdownInterval);
+        window.examCountdownInterval = null;
+    }
+
+
+    // Toggle auth background mode (removes periodic table canvas on login/register)
+    if (path === '/login' || path === '/register' || path === '/' || path === '/welcome') {
+        document.body.classList.add('auth-page-mode');
+    } else {
+        document.body.classList.remove('auth-page-mode');
     }
 
     // Add smooth transition effect
@@ -51,6 +83,10 @@ async function router() {
             return;
         } else if (path === '/contact') {
             UI.renderContact(navigateTo, currentUser);
+            animatePageIn();
+            return;
+        } else if (path === '/resources') {
+            UI.renderResources(navigateTo);
             animatePageIn();
             return;
         }
@@ -85,6 +121,11 @@ async function router() {
 
         if (path === '/home') {
             await UI.renderHome(currentUser);
+            /* ========================================================================= */
+            /* ===== EXAM TIMETABLE POPUP CODE - DISABLED ============================== */
+            /* ========================================================================= */
+            // UI.checkExamTimetablePopup(currentUser);
+            /* ========================================================================= */
         } else if (path === '/organicgame') {
             await UI.renderOrganicGame();
         } else if (path === '/profile') {
@@ -92,7 +133,16 @@ async function router() {
         } else if (path === '/timetable') {
             await UI.renderTimetable(currentUser);
         } else if (path === '/recordings') {
-            UI.renderSubjects(navigateTo);
+            const hasAccess = await UI.checkLectureHallAccess(currentUser, navigateTo);
+            if (hasAccess) {
+                UI.renderSubjects(navigateTo);
+            } else {
+                return;
+            }
+        } else if (path === '/live') {
+            await UI.renderLiveClasses(currentUser, navigateTo);
+        } else if (path === '/chat') {
+            await UI.renderCommunityChat(currentUser, navigateTo);
         } else if (path === '/adminpanel') {
             if (currentUser.uid === ADMIN_UID) {
                 await UI.renderAdmin(currentUser);
@@ -103,6 +153,10 @@ async function router() {
         }
         // Dynamic Routes for Recordings
         else if (path.startsWith('/recording/')) {
+            const hasAccess = await UI.checkLectureHallAccess(currentUser, navigateTo);
+            if (!hasAccess) {
+                return;
+            }
             const parts = path.split('/');
             const subject = parts[2];
             const type = parts[3];
@@ -179,6 +233,7 @@ window.addEventListener('popstate', router);
 window.addEventListener('load', () => {
     initParticles();
     registerServiceWorker();
+    UI.startLiveClassesListener();
 
     let sessionUnsubscribe = null;
 
@@ -226,6 +281,11 @@ window.addEventListener('load', () => {
             UI.trackUserActivity(currentUser.uid);
             UI.listenForNotifications(currentUser);
             UI.checkNewYearPopup(currentUser);
+            /* ========================================================================= */
+            /* ===== EXAM TIMETABLE POPUP CODE - DISABLED ============================== */
+            /* ========================================================================= */
+            // UI.checkExamTimetablePopup(currentUser);
+            /* ========================================================================= */
             if (window.checkAndDisplayGlobalNotification) window.checkAndDisplayGlobalNotification(currentUser);
             await requestNotificationPermission();
         } else {
@@ -242,7 +302,14 @@ window.addEventListener('load', () => {
 
         // Redirect if on root or welcome and logged in
         if ((!window.location.pathname || window.location.pathname === '/' || window.location.pathname === '/welcome') && currentUser) {
-            navigateTo('/home');
+            let targetPath = '/home';
+            try {
+                const savedPath = sessionStorage.getItem('study_last_active_path');
+                if (savedPath && savedPath !== '/' && savedPath !== '/welcome' && savedPath !== '/login' && savedPath !== '/register') {
+                    targetPath = savedPath;
+                }
+            } catch (e) {}
+            navigateTo(targetPath);
         } else {
             router();
         }

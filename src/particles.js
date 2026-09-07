@@ -173,7 +173,7 @@ export function initParticles() {
     canvas.style.position = 'fixed';
     canvas.style.top = '0';
     canvas.style.left = '0';
-    canvas.style.width = '100vw'; // Utilizing vw/vh visually but internal drawing via dpr ensures no bounds overflow issues
+    canvas.style.width = '100vw';
     canvas.style.height = '100vh';
     canvas.style.zIndex = '-1'; 
     canvas.style.pointerEvents = 'none'; 
@@ -189,15 +189,35 @@ export function initParticles() {
     // Ordered Periodic elements mapping exactly to 118 items
     const chars = ['H','He','Li','Be','B','C','N','O','F','Ne','Na','Mg','Al','Si','P','S','Cl','Ar','K','Ca','Sc','Ti','V','Cr','Mn','Fe','Co','Ni','Cu','Zn','Ga','Ge','As','Se','Br','Kr','Rb','Sr','Y','Zr','Nb','Mo','Tc','Ru','Rh','Pd','Ag','Cd','In','Sn','Sb','Te','I','Xe','Cs','Ba','La','Ce','Pr','Nd','Pm','Sm','Eu','Gd','Tb','Dy','Ho','Er','Tm','Yb','Lu','Hf','Ta','W','Re','Os','Ir','Pt','Au','Hg','Tl','Pb','Bi','Po','At','Rn','Fr','Ra','Ac','Th','Pa','U','Np','Pu','Am','Cm','Bk','Cf','Es','Fm','Md','No','Lr','Rf','Db','Sg','Bh','Hs','Mt','Ds','Rg','Cn','Nh','Fl','Mc','Lv','Ts','Og'];
     
-    let isMobile = window.innerWidth < 768; // true mobile size
-    let isLowPerformance = window.innerWidth < 1024; // tablets/low end
-    let particleCount = isMobile ? 32 : chars.length; // Use only 32 elements on mobile
+    // Smart Device Category Detection
+    function getDeviceTier() {
+        const width = window.innerWidth;
+        const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        const isIPadOS = (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) || /iPad/i.test(navigator.userAgent);
+        
+        if (width < 640 || (/iPhone|iPod|Android.*Mobile/i.test(navigator.userAgent) && !isIPadOS)) {
+            return 'mobile';
+        }
+        if (isIPadOS || (isTouch && width <= 1024)) {
+            return 'tablet';
+        }
+        return 'desktop';
+    }
+
+    let deviceTier = getDeviceTier();
+    let isMobile = deviceTier === 'mobile';
+    let isTablet = deviceTier === 'tablet';
+    let isDesktop = deviceTier === 'desktop';
+    let isLowPerformance = isMobile || isTablet;
+
+    // Desktop/Laptop: Full 118 periodic elements!
+    // Tablets/iPad: 25 elements (prevents WebKit memory crash)
+    // Smartphones: 14 elements (battery/RAM friendly)
+    let particleCount = isDesktop ? chars.length : (isTablet ? 25 : 14);
 
     let state = 'table'; 
-    let morphInterval = 20000; // Longer delay in stable table form
+    let morphInterval = 20000;
     let lastMorphTime = Date.now();
-    let sphereRotationX = 0;
-    let sphereRotationY = 0;
 
     // Periodic table structure map
     function getElementPos(atomicNum) {
@@ -232,40 +252,60 @@ export function initParticles() {
         mouse.y = null;
     });
 
-    // Elegant Resizing using High-DPI Resolution scaling (Makes text ultra-crisp!)
+    // Touch support for smart boards & touchscreens
+    window.addEventListener('touchmove', (e) => {
+        if (e.touches && e.touches[0]) {
+            mouse.x = e.touches[0].clientX;
+            mouse.y = e.touches[0].clientY;
+        }
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => {
+        mouse.x = null;
+        mouse.y = null;
+    }, { passive: true });
+
     function resize() {
-        isLowPerformance = window.innerWidth < 1024;
-        isMobile = window.innerWidth <= 768;
+        deviceTier = getDeviceTier();
+        isMobile = deviceTier === 'mobile';
+        isTablet = deviceTier === 'tablet';
+        isDesktop = deviceTier === 'desktop';
+        isLowPerformance = isMobile || isTablet;
+
+        // Desktop/Laptop: high crisp DPR up to 1.5.
+        // Tablets/iPad/Smartphones: 1.0 (eliminates canvas memory bloat).
+        // Smart Board / 4K (>1920px): cap at 1.25 for top performance.
+        let maxDpr = 1.0;
+        if (isDesktop) {
+            maxDpr = window.innerWidth > 1920 ? 1.25 : 1.5;
+        }
         
-        // Cap Maximum Device Pixel Ratio. Dpr above 1.5 destroys performance on full-screen canvases.
-        const maxDpr = isLowPerformance ? 1 : 1.5;
         const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
         
         logicalBounds.width = window.innerWidth;
         logicalBounds.height = window.innerHeight;
         
-        canvas.width = logicalBounds.width * dpr;
-        canvas.height = logicalBounds.height * dpr;
+        canvas.width = Math.floor(logicalBounds.width * dpr);
+        canvas.height = Math.floor(logicalBounds.height * dpr);
         
         canvas.style.width = logicalBounds.width + 'px';
         canvas.style.height = logicalBounds.height + 'px';
         
-        ctx.scale(dpr, dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
+
     function init() {
         particles = [];
         const isDarkTheme = document.documentElement.getAttribute('data-theme') !== 'light';
         const activeColors = isDarkTheme ? darkColors : lightColors;
 
-        const currentParticleCount = isMobile ? 15 : particleCount;
+        particleCount = isDesktop ? chars.length : (isTablet ? 25 : 14);
 
-        for (let i = 0; i < currentParticleCount; i++) {
+        for (let i = 0; i < particleCount; i++) {
             const x = Math.random() * logicalBounds.width;
             const y = Math.random() * logicalBounds.height;
-            const char = chars[i % chars.length]; // Modulo to avoid out of bounds if current is higher than chars
+            const char = chars[i % chars.length];
             const atomicNum = (i % chars.length) + 1; 
-            
-            // Generate organized color pattern to simulate element properties/groups
             const color = activeColors[i % activeColors.length];
             
             particles.push(new Particle(x, y, char, atomicNum, color));
@@ -273,12 +313,11 @@ export function initParticles() {
     }
 
     window.addEventListener('theme-change', init);
-    // Re-init on resize to update mobile/desktop counts
+    
     window.addEventListener('resize', () => {
-        const wasMobile = isMobile;
+        const prevTier = deviceTier;
         resize();
-        if (wasMobile !== isMobile) {
-            particleCount = isMobile ? 15 : chars.length;
+        if (prevTier !== deviceTier) {
             init();
         }
     });
@@ -287,14 +326,12 @@ export function initParticles() {
         const cols = 18;
         const rows = 10;
         
-        // Compute cell sizes organically based on logical bounds to fit the whole table beautifully
         const cellWidth = Math.min(logicalBounds.width / (cols + 4), 60); 
         const cellHeight = cellWidth;
         
         const tableWidth = cols * cellWidth;
         const tableHeight = rows * cellHeight;
         
-        // Start position to center the table on screen
         const startX = (logicalBounds.width - tableWidth) / 2 + cellWidth / 2;
         const startY = (logicalBounds.height - tableHeight) / 2 + cellHeight / 2;
 
@@ -304,23 +341,27 @@ export function initParticles() {
             
             p.target.x = startX + pos.c * cellWidth;
             p.target.y = startY + pos.r * cellHeight;
-            p.target.z = 0; // Solid flat plane
+            p.target.z = 0;
         }
     }
 
+    let isAnimationRunning = true;
+    let animFrameId = null;
+
     function animate() {
+        if (!isAnimationRunning) return;
+
         ctx.clearRect(0, 0, logicalBounds.width, logicalBounds.height);
 
-        if (!isMobile) {
+        if (isDesktop) {
+            // Full Laptop / PC Periodic Table & Flow Experience
             const now = Date.now();
             if (now - lastMorphTime > morphInterval) {
                 state = state === 'flow' ? 'table' : 'flow';
                 lastMorphTime = now;
-                // Give 'flow' a shorter duration, and 'table' a longer one
                 morphInterval = state === 'flow' ? 8000 : 25000; 
                 
                 if (state === 'flow') {
-                    // Gentle Drift instead of powerful scatter to conserve performance
                     particles.forEach(p => {
                         let dx = p.x - logicalBounds.width / 2;
                         p.velocity.x = (dx > 0 ? 1 : -1) * (Math.random() * 0.5);
@@ -332,26 +373,61 @@ export function initParticles() {
 
             if (state === 'table') {
                 calculateTableTargets();
-                particles.forEach(p => p.updateSphere(mouse)); // Reuse smooth interpolation method
+                particles.forEach(p => p.updateSphere(mouse));
             } else {
                 particles.forEach((p, index) => p.updateFlow(particles, index, mouse, -0.015, logicalBounds));
             }
+        } else if (isTablet) {
+            // Tablet / iPad: Smooth, lightweight flow with gentle mouse/touch interactions
+            particles.forEach((p, index) => {
+                p.y -= 0.4;
+                p.x += Math.sin(Date.now() * 0.001 + p.atomicNum) * 0.2;
+                if (p.y < -50) {
+                    p.y = logicalBounds.height + 50;
+                    p.x = Math.random() * logicalBounds.width;
+                }
+                p.applyMouse(mouse);
+            });
         } else {
-            // Ultra-lightweight mobile update
+            // Mobile: Ultra-lightweight drift
             particles.forEach(p => {
                 p.y -= 0.3;
                 if (p.y < -50) p.y = logicalBounds.height + 50;
             });
         }
 
-        // Apply true visual depth-sorting to ensure objects coming "Forward" obscure things "Behind" them natively
-        // Do NOT sort the main 'particles' array in-place, because their index is used mathematically for sphere positioning!
-        const sortedParticles = [...particles].sort((a, b) => a.z - b.z);
-
+        // Draw particles
+        const sortedParticles = isDesktop ? [...particles].sort((a, b) => a.z - b.z) : particles;
         sortedParticles.forEach(p => p.draw(ctx, isLowPerformance, isMobile));
 
-        requestAnimationFrame(animate);
+        animFrameId = requestAnimationFrame(animate);
     }
+
+    // Lifecycle: Pause rendering when tab is hidden (saves battery, prevents Safari background termination)
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            isAnimationRunning = false;
+            if (animFrameId) cancelAnimationFrame(animFrameId);
+        } else {
+            if (!isAnimationRunning) {
+                isAnimationRunning = true;
+                lastMorphTime = Date.now();
+                animate();
+            }
+        }
+    });
+
+    window.addEventListener('pageshow', () => {
+        if (!isAnimationRunning) {
+            isAnimationRunning = true;
+            animate();
+        }
+    });
+
+    window.addEventListener('pagehide', () => {
+        isAnimationRunning = false;
+        if (animFrameId) cancelAnimationFrame(animFrameId);
+    });
 
     resize();
     init();

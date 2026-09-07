@@ -1,0 +1,153 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && request.auth.uid == "m1rddMA36WbVunFW3B0BzuqOwyI2";
+    }
+    
+    function isNilanthaMod() {
+      return isAuthenticated() && (
+        request.auth.uid == "vn9a2rNQgbbYPyHRS2c28XwlMRJ3" || 
+        request.auth.uid == "2M8JB3hF4GQdBIwHfzp2grjBVCJ3"
+      );
+    }
+    
+    function isRavinduMod() {
+      return isAuthenticated() && request.auth.uid == "lk9bKS8oxKNt8HcslZrMgLmHOb43";
+    }
+
+    function isModerator() {
+      return isAuthenticated() && (
+        isAdmin() ||
+        isNilanthaMod() ||
+        isRavinduMod() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "moderator" ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isModerator == true
+        ))
+      );
+    }
+
+    function isLectureHallEditor() {
+      return isAuthenticated() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.canPostLectureHall == true ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isLectureHallEditor == true
+        ))
+      );
+    }
+
+    // ================= USERS =================
+    match /users/{userId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // ================= NOTIFICATIONS =================
+    match /notifications/{notificationId} {
+      allow create: if isAdmin() || (isAuthenticated() && request.resource.data.userId == request.auth.uid);
+      allow read, update, delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+    }
+
+    // ================= GLOBAL NOTIFICATIONS =================
+    match /global_notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ================= STUDY LOGS =================
+    match /studyLogs/{logId} {
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // ================= TIME TABLE =================
+    match /timetable/{userId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // ================= RECORDINGS =================
+    match /recordings/{docId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ================= LESSONS =================
+    match /lessons/{lessonId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin() || isLectureHallEditor();
+      
+      // ✅ Ravindu Bandaranayake - ravindu-ict lessons only
+      allow create: if isRavinduMod() && request.resource.data.subject == "ravindu-ict";
+      allow update, delete: if isRavinduMod() && resource.data.subject == "ravindu-ict";
+
+      // ✅ Nilantha Jayasuriya moderators - physics-nilantha lessons only
+      allow create: if isNilanthaMod() && request.resource.data.subject == "physics-nilantha";
+      allow update, delete: if isNilanthaMod() && resource.data.subject == "physics-nilantha";
+    }
+
+    // ================= LESSON CONTENTS =================
+    match /lessonContents/{contentId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin() || isLectureHallEditor();
+      
+      // ✅ Ravindu Bandaranayake - ravindu-ict contents only
+      allow create: if isRavinduMod() && request.resource.data.lessonId.matches("ravindu-ict_.*");
+      allow update, delete: if isRavinduMod() && resource.data.lessonId.matches("ravindu-ict_.*");
+
+      // ✅ Nilantha Jayasuriya moderators - physics-nilantha contents only
+      allow create: if isNilanthaMod() && request.resource.data.lessonId.matches("physics-nilantha_.*");
+      allow update, delete: if isNilanthaMod() && resource.data.lessonId.matches("physics-nilantha_.*");
+    }
+    
+    // ================= LIVE CLASSES (Broadcasts & Streaming) =================
+    match /liveClasses/{classId} {
+      allow read: if true;
+      allow create, update, delete: if isModerator();
+    }
+
+    // ================= SETTINGS =================
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // ================= USER ACTIVITY (Real-time Stats) =================
+    match /userActivity/{activityId} {
+      allow read, create, update: if isAuthenticated();
+    }
+    
+    // ================= CONTACT MESSAGES =================
+    match /contactMessages/{document=**} {
+      allow create: if true;
+      allow read, update, delete: if isAuthenticated();
+    }
+
+    // ================= CHEMISTRY SCORES =================
+    match /chemistry_scores/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ================= EMAIL REQUESTS =================
+    match /emailRequests/{requestId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+    }
+
+    // ================= GLOBAL COMMUNITY CHAT =================
+    match /communityChat/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid;
+      allow delete: if isModerator() || (isAuthenticated() && resource.data.senderId == request.auth.uid);
+      allow update: if false;
+    }
+  }
+}
