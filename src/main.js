@@ -54,6 +54,20 @@ async function router() {
         document.body.classList.remove('auth-page-mode');
     }
 
+    // Handle chat fullscreen mode & unread tracking
+    if (path === '/chat') {
+        localStorage.setItem('study_last_chat_viewed_time', Date.now().toString());
+        sessionStorage.setItem('study_was_in_chat', 'true');
+        if (UI.updateUnreadChatBadges) UI.updateUnreadChatBadges(0);
+    } else {
+        document.body.classList.remove('chat-fullscreen-mode');
+        if (sessionStorage.getItem('study_was_in_chat') === 'true') {
+            sessionStorage.removeItem('study_was_in_chat');
+            localStorage.setItem('study_last_chat_viewed_time', Date.now().toString());
+            if (UI.updateUnreadChatBadges) UI.updateUnreadChatBadges(0);
+        }
+    }
+
     // Add smooth transition effect
     const container = document.getElementById('app-container');
     container.style.opacity = '0';
@@ -285,6 +299,7 @@ window.addEventListener('load', () => {
 
             UI.trackUserActivity(currentUser.uid);
             UI.listenForNotifications(currentUser);
+            UI.listenForUnreadChat(currentUser);
             UI.checkNewYearPopup(currentUser);
             /* ========================================================================= */
             /* ===== EXAM TIMETABLE POPUP CODE - DISABLED ============================== */
@@ -303,6 +318,7 @@ window.addEventListener('load', () => {
             localStorage.removeItem('pendingSessionId');
             removeCookie('pendingSessionId');
             UI.listenForNotifications(null);
+            UI.listenForUnreadChat(null);
         }
 
         // Redirect if on root or welcome and logged in

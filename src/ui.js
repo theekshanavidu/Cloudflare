@@ -450,7 +450,12 @@ export async function renderHeader(user, navigate, logout) {
                 <span>Live</span>
                 <span class="live-indicator-dot w-2 h-2 rounded-full bg-red-500 shadow-md shadow-red-500/50 live-pulse-dot" style="display: ${window._hasLiveClasses ? 'inline-block' : 'none'};"></span>
             </button>
-            <button class="${getNavClass('/chat')}" onclick="navigateTo('/chat')">Chat Lounge</button>
+            <button class="${getNavClass('/chat')} relative inline-flex items-center gap-1.5" onclick="navigateTo('/chat')">
+                <span>Chat Lounge</span>
+                <span id="chat-unread-badge-desktop" class="px-1.5 min-w-[18px] h-[18px] text-[10px] font-black rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-white inline-flex items-center justify-center shadow-sm" style="display: ${window._unreadChatCount > 0 ? 'inline-flex' : 'none'};">
+                    ${window._unreadChatCount > 99 ? '99+' : (window._unreadChatCount || '')}
+                </span>
+            </button>
             <button class="${getNavClass('/contact')}" onclick="navigateTo('/contact')">Contact Us</button>
             <button class="${getNavClass('/simulation')}" onclick="navigateTo('/simulation')">Simulation</button>
             <button class="${getNavClass('/resources')}" onclick="navigateTo('/resources')">Resources</button>
@@ -458,6 +463,16 @@ export async function renderHeader(user, navigate, logout) {
         </nav>
 
         <div class="flex items-center gap-2 sm:gap-4">
+            <!-- Chat Lounge Quick Access Button & Unread Counter (Prominently visible at the top) -->
+            <button onclick="navigateTo('/chat')" class="relative p-2 text-xl hover:bg-[var(--glass-border)] rounded-full transition-colors flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 text-[var(--text-primary)] cursor-pointer" title="Chat Lounge">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                </svg>
+                <span id="chat-unread-badge-header" class="absolute -top-1 -right-1 px-1.5 min-w-[18px] h-[18px] text-[10px] font-black rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-white flex items-center justify-center shadow-md shadow-red-500/50 animate-pulse border-2 border-[var(--bg-secondary)]" style="display: ${window._unreadChatCount > 0 ? 'flex' : 'none'};">
+                    ${window._unreadChatCount > 99 ? '99+' : (window._unreadChatCount || '')}
+                </span>
+            </button>
+
             <button onclick="window.showNotifications()" class="relative p-2 text-xl hover:bg-[var(--glass-border)] rounded-full transition-colors flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 text-[var(--text-primary)]">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
@@ -482,7 +497,7 @@ export async function renderHeader(user, navigate, logout) {
                             <p class="text-xs text-[var(--text-secondary)] truncate">${user.email}</p>
                         </div>
                         <button class="w-full text-left p-2 hover:bg-[var(--primary)] hover:text-white rounded-lg text-sm text-[var(--text-primary)] transition-colors" onclick="navigateTo('/profile')">Profile Settings</button>
-                        <button class="w-full text-left p-2 hover:bg-[var(--primary)] hover:text-white rounded-lg text-sm text-[var(--text-primary)] transition-colors flex items-center gap-2" onclick="navigateTo('/chat')">Community Lounge</button>
+                        <button class="w-full text-left p-2 hover:bg-[var(--primary)] hover:text-white rounded-lg text-sm text-[var(--text-primary)] transition-colors flex items-center gap-2" onclick="navigateTo('/chat')">Chat Lounge</button>
                         ${user.uid === ADMIN_UID ? `<button class="w-full text-left p-2 hover:bg-[var(--primary)] hover:text-white rounded-lg text-sm text-[var(--text-primary)] transition-colors" onclick="navigateTo('/adminpanel')">Admin Dashboard</button>` : ''}
                         <div class="h-px bg-[var(--glass-border)] my-1"></div>
                         <button id="logout-btn" class="w-full text-left p-2 hover:bg-red-500/10 text-red-400 rounded-lg text-sm transition-colors">Sign Out</button>
@@ -4291,11 +4306,16 @@ export function updateMobileNav(currentPath) {
                 ${window._hasLiveClasses ? `<span class="w-2.5 h-2.5 rounded-full bg-red-500 shadow-md shadow-red-500/50 live-pulse-dot"></span>` : ''}
             </div>
 
-            <div class="mobile-drawer-item ${isChat ? 'active' : ''}" onclick="window.closeMobileDrawer(); navigateTo('/chat')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
-                </svg>
-                <span>Community Lounge</span>
+            <div class="mobile-drawer-item ${isChat ? 'active' : ''} justify-between" onclick="window.closeMobileDrawer(); navigateTo('/chat')">
+                <div class="flex items-center gap-3">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                    </svg>
+                    <span>Chat Lounge</span>
+                </div>
+                <span id="chat-unread-badge-drawer" class="px-2 py-0.5 text-xs font-black rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-sm" style="display: ${window._unreadChatCount > 0 ? 'inline-flex' : 'none'};">
+                    ${window._unreadChatCount > 99 ? '99+' : (window._unreadChatCount || '')}
+                </span>
             </div>
 
             <div class="mobile-drawer-item ${isSimulation ? 'active' : ''}" onclick="window.closeMobileDrawer(); navigateTo('/simulation')">
@@ -5227,6 +5247,38 @@ let liveClassesUnsubscribe = null;
 window._hasLiveClasses = false;
 window._liveClassesData = [];
 
+export function formatTime12h(timeStr) {
+  if (!timeStr) return '';
+  if (timeStr.toLowerCase().includes('am') || timeStr.toLowerCase().includes('pm')) {
+    return timeStr;
+  }
+  const parts = timeStr.split(':');
+  if (parts.length < 2) return timeStr;
+  let hours = parseInt(parts[0], 10);
+  const minutes = (parts[1] || '00').slice(0, 2).padStart(2, '0');
+  if (isNaN(hours)) return timeStr;
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const strHours = hours < 10 ? '0' + hours : hours;
+  return `${strHours}:${minutes} ${ampm}`;
+}
+
+export function timeTo24h(timeStr) {
+  if (!timeStr) return '19:30';
+  if (!timeStr.toLowerCase().includes('am') && !timeStr.toLowerCase().includes('pm')) {
+    return timeStr.slice(0, 5);
+  }
+  const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+  if (!match) return '19:30';
+  let hours = parseInt(match[1], 10);
+  const minutes = (match[2] || '00').slice(0, 2).padStart(2, '0');
+  const ampm = (match[3] || '').toUpperCase();
+  if (ampm === 'PM' && hours < 12) hours += 12;
+  if (ampm === 'AM' && hours === 12) hours = 0;
+  return `${hours < 10 ? '0' + hours : hours}:${minutes}`;
+}
+
 export function startLiveClassesListener() {
   if (liveClassesUnsubscribe) return;
 
@@ -5381,8 +5433,8 @@ export async function renderLiveClasses(user, navigateTo) {
                                     <button onclick="window.endLiveClass('${c.id}')" class="btn-ghost py-1.5 px-2 text-xs font-bold text-red-400 hover:bg-red-500/10 border border-red-500/20 rounded-lg flex items-center justify-center gap-1 cursor-pointer" title="End Live Class">
                                         <span>🛑 End</span>
                                     </button>
-                                    <button onclick="window.editLiveClassLink('${c.id}', '${encodeURIComponent(c.link || '')}')" class="btn-ghost py-1.5 px-2 text-xs font-bold text-yellow-400 hover:bg-yellow-500/10 border border-yellow-500/20 rounded-lg flex items-center justify-center gap-1 cursor-pointer" title="Update Link">
-                                        <span>🔗 Link</span>
+                                    <button onclick="window.openEditLiveClassModal('${c.id}')" class="btn-ghost py-1.5 px-2 text-xs font-bold text-yellow-400 hover:bg-yellow-500/10 border border-yellow-500/20 rounded-lg flex items-center justify-center gap-1 cursor-pointer" title="Edit Class Details">
+                                        <span>✏️ Edit</span>
                                     </button>
                                     <button onclick="window.deleteLiveClass('${c.id}')" class="btn-ghost py-1.5 px-2 text-xs font-bold text-slate-400 hover:bg-white/10 border border-[var(--glass-border)] rounded-lg flex items-center justify-center gap-1 cursor-pointer" title="Delete">
                                         <span>🗑️ Del</span>
@@ -5445,7 +5497,7 @@ export async function renderLiveClasses(user, navigateTo) {
                                 </span>
                                 <span class="text-slate-600">•</span>
                                 <span class="flex items-center gap-1 text-indigo-400">
-                                    <span>⏰</span> ${c.scheduledTime || 'TBD'}
+                                    <span>⏰</span> ${formatTime12h(c.scheduledTime) || 'TBD'}
                                 </span>
                             </div>
 
@@ -5459,10 +5511,10 @@ export async function renderLiveClasses(user, navigateTo) {
                                     <span>🔴 Go Live (Start Class)</span>
                                 </button>
                                 <div class="grid grid-cols-2 gap-2">
-                                    <button onclick="window.editLiveClassLink('${c.id}', '${encodeURIComponent(c.link || '')}')" class="btn-ghost py-1.5 px-2 text-xs font-bold text-yellow-400 hover:bg-yellow-500/10 border border-yellow-500/20 rounded-lg flex items-center justify-center gap-1 cursor-pointer">
-                                        <span>✏️ Link</span>
+                                    <button onclick="window.openEditLiveClassModal('${c.id}')" class="btn-ghost py-1.5 px-2 text-xs font-bold text-yellow-400 hover:bg-yellow-500/10 border border-yellow-500/20 rounded-lg flex items-center justify-center gap-1 cursor-pointer" title="Edit Class Details">
+                                        <span>✏️ Edit</span>
                                     </button>
-                                    <button onclick="window.deleteLiveClass('${c.id}')" class="btn-ghost py-1.5 px-2 text-xs font-bold text-red-400 hover:bg-red-500/10 border border-red-500/20 rounded-lg flex items-center justify-center gap-1 cursor-pointer">
+                                    <button onclick="window.deleteLiveClass('${c.id}')" class="btn-ghost py-1.5 px-2 text-xs font-bold text-red-400 hover:bg-red-500/10 border border-red-500/20 rounded-lg flex items-center justify-center gap-1 cursor-pointer" title="Cancel Class">
                                         <span>🗑️ Cancel</span>
                                     </button>
                                 </div>
@@ -5558,7 +5610,7 @@ window.openAddLiveClassModal = () => {
                 </div>
                 <div>
                     <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Scheduled Time</label>
-                    <input type="text" id="live-time-input" placeholder="e.g. 07:30 PM" class="smart-input w-full" value="07:30 PM">
+                    <input type="time" id="live-time-input" class="smart-input w-full" value="19:30" required>
                 </div>
             </div>
 
@@ -5660,6 +5712,202 @@ window.openAddLiveClassModal = () => {
       alert("Failed to save class: " + err.message);
       btn.disabled = false;
       btn.innerHTML = `Save Class`;
+    }
+  };
+};
+
+window.openEditLiveClassModal = async (classId) => {
+  const existing = document.getElementById('edit-live-modal');
+  if (existing) existing.remove();
+
+  let c = (window._liveClassesData || []).find(item => item.id === classId);
+  if (!c) {
+    try {
+      const snap = await getDoc(doc(db, 'liveClasses', classId));
+      if (snap.exists()) {
+        c = { id: snap.id, ...snap.data() };
+      }
+    } catch (e) {
+      console.error("Error finding class:", e);
+    }
+  }
+
+  if (!c) {
+    alert("Live class not found or failed to load.");
+    return;
+  }
+
+  const isPredefinedTeacher = Boolean(LIVE_TEACHERS_MAP[c.teacher]);
+
+  const modal = document.createElement('div');
+  modal.id = 'edit-live-modal';
+  modal.className = 'fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in';
+
+  modal.innerHTML = `
+    <div class="smart-card w-full max-w-lg bg-[var(--bg-secondary)] border border-yellow-500/30 shadow-2xl relative p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <div class="flex items-center justify-between pb-4 border-b border-[var(--glass-border)] mb-4">
+            <h3 class="text-xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+                <span>✏️</span> Edit Live / Upcoming Class
+            </h3>
+            <button type="button" onclick="document.getElementById('edit-live-modal').remove()" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer">✕</button>
+        </div>
+
+        <form id="edit-live-class-form" class="space-y-4">
+            <div>
+                <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Lecturer / Teacher</label>
+                <select id="edit-live-teacher-select" class="smart-input w-full font-medium" onchange="window.handleEditLiveTeacherChange(this.value)">
+                    <option value="Ruwan Darshana" ${c.teacher === 'Ruwan Darshana' ? 'selected' : ''}>Ruwan Darshana (Combined Maths)</option>
+                    <option value="Anuradha Perera" ${c.teacher === 'Anuradha Perera' ? 'selected' : ''}>Anuradha Perera (Physics)</option>
+                    <option value="Amila Dasanayake" ${c.teacher === 'Amila Dasanayake' ? 'selected' : ''}>Amila Dasanayake (Chemistry)</option>
+                    <option value="Dinesh Muthugala" ${c.teacher === 'Dinesh Muthugala' ? 'selected' : ''}>Dinesh Muthugala (Biology)</option>
+                    <option value="Vikum Harshana" ${c.teacher === 'Vikum Harshana' ? 'selected' : ''}>Vikum Harshana (Combined Maths)</option>
+                    <option value="Manoj Solangarachchi" ${c.teacher === 'Manoj Solangarachchi' ? 'selected' : ''}>Manoj Solangarachchi (Combined Maths)</option>
+                    <option value="Ravindu Bandaranayake" ${c.teacher === 'Ravindu Bandaranayake' ? 'selected' : ''}>Ravindu Bandaranayake (ICT)</option>
+                    <option value="__custom__" ${!isPredefinedTeacher ? 'selected' : ''}>Custom Teacher Name...</option>
+                </select>
+                <input id="edit-live-teacher-custom" value="${!isPredefinedTeacher ? (c.teacher || '') : ''}" placeholder="Enter lecturer name..." class="smart-input w-full mt-2" style="display: ${!isPredefinedTeacher ? 'block' : 'none'};">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Subject</label>
+                    <select id="edit-live-subject-select" class="smart-input w-full font-medium">
+                        <option value="Combined Maths" ${c.subject === 'Combined Maths' ? 'selected' : ''}>Combined Maths</option>
+                        <option value="Physics" ${c.subject === 'Physics' ? 'selected' : ''}>Physics</option>
+                        <option value="Chemistry" ${c.subject === 'Chemistry' ? 'selected' : ''}>Chemistry</option>
+                        <option value="Biology" ${c.subject === 'Biology' ? 'selected' : ''}>Biology</option>
+                        <option value="ICT" ${c.subject === 'ICT' ? 'selected' : ''}>ICT</option>
+                        <option value="General" ${c.subject === 'General' ? 'selected' : ''}>General</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Target Batch</label>
+                    <select id="edit-live-batch-select" class="smart-input w-full font-medium">
+                        <option value="All Batches" ${c.batch === 'All Batches' ? 'selected' : ''}>All Batches</option>
+                        <option value="2026 A/L" ${c.batch === '2026 A/L' ? 'selected' : ''}>2026 A/L</option>
+                        <option value="2027 A/L" ${c.batch === '2027 A/L' ? 'selected' : ''}>2027 A/L</option>
+                        <option value="2028 A/L" ${c.batch === '2028 A/L' ? 'selected' : ''}>2028 A/L</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Class Title / Topic</label>
+                <input id="edit-live-title-input" value="${(c.title || '').replace(/"/g, '&quot;')}" placeholder="e.g. Wave Optics Theory Revision" class="smart-input w-full" required>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Scheduled Date</label>
+                    <input type="date" id="edit-live-date-input" class="smart-input w-full" value="${c.scheduledDate || new Date().toISOString().slice(0, 10)}">
+                </div>
+                <div>
+                    <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Scheduled Time</label>
+                    <input type="time" id="edit-live-time-input" class="smart-input w-full" value="${timeTo24h(c.scheduledTime)}" required>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Meeting / Live Stream Link (Zoom / YouTube Live)</label>
+                <input id="edit-live-link-input" value="${c.link || ''}" placeholder="https://zoom.us/... or https://youtube.com/live/..." class="smart-input w-full">
+            </div>
+
+            <div>
+                <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Description / Notes (Optional)</label>
+                <textarea id="edit-live-desc-input" placeholder="Additional notes or instructions..." rows="2" class="smart-input w-full">${(c.description || '').replace(/</g, '&lt;')}</textarea>
+            </div>
+
+            <div>
+                <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-2 block">Status</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="flex items-center gap-2 p-3 rounded-xl bg-[var(--bg-root)] border border-[var(--glass-border)] cursor-pointer hover:border-indigo-500">
+                        <input type="radio" name="edit-live-status" value="upcoming" ${c.status === 'upcoming' ? 'checked' : ''} class="text-indigo-600">
+                        <span class="text-sm font-bold text-[var(--text-primary)]">⏳ Upcoming</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-3 rounded-xl bg-[var(--bg-root)] border border-[var(--glass-border)] cursor-pointer hover:border-red-500">
+                        <input type="radio" name="edit-live-status" value="live" ${c.status === 'live' ? 'checked' : ''} class="text-red-600">
+                        <span class="text-sm font-bold text-red-400">🔴 Live Now</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex gap-3 pt-3">
+                <button type="submit" id="update-live-class-btn" class="btn-primary flex-1 py-3 font-bold bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 shadow-lg cursor-pointer">
+                    Update Class
+                </button>
+                <button type="button" onclick="document.getElementById('edit-live-modal').remove()" class="btn-ghost py-3 px-5 border border-[var(--glass-border)] cursor-pointer">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  window.handleEditLiveTeacherChange = (val) => {
+    const customInput = document.getElementById('edit-live-teacher-custom');
+    const subjectSelect = document.getElementById('edit-live-subject-select');
+    if (val === '__custom__') {
+      customInput.style.display = 'block';
+      customInput.required = true;
+    } else {
+      customInput.style.display = 'none';
+      customInput.required = false;
+      const tInfo = LIVE_TEACHERS_MAP[val];
+      if (tInfo && tInfo.subject) {
+        subjectSelect.value = tInfo.subject;
+      }
+    }
+  };
+
+  document.getElementById('edit-live-class-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('update-live-class-btn');
+    btn.disabled = true;
+    btn.innerHTML = `<span class="animate-spin h-5 w-5 border-2 border-white rounded-full border-t-transparent inline-block mr-2"></span> Updating...`;
+
+    const teacherSelect = document.getElementById('edit-live-teacher-select').value;
+    const rawTeacherName = teacherSelect === '__custom__' ? document.getElementById('edit-live-teacher-custom').value.trim() : teacherSelect;
+    const teacherName = sanitizeInput(rawTeacherName);
+    const subject = sanitizeInput(document.getElementById('edit-live-subject-select').value);
+    const batch = sanitizeInput(document.getElementById('edit-live-batch-select').value);
+    const title = sanitizeInput(document.getElementById('edit-live-title-input').value.trim());
+    const scheduledDate = sanitizeInput(document.getElementById('edit-live-date-input').value);
+    const scheduledTime = sanitizeInput(document.getElementById('edit-live-time-input').value.trim());
+    const link = sanitizeUrl(document.getElementById('edit-live-link-input').value.trim());
+    const description = sanitizeInput(document.getElementById('edit-live-desc-input').value.trim());
+    const status = sanitizeInput(document.querySelector('input[name="edit-live-status"]:checked').value);
+
+    const teacherInfo = LIVE_TEACHERS_MAP[teacherName];
+    const teacherImg = teacherInfo ? teacherInfo.img : (c.teacherImg || '');
+
+    const updatePayload = {
+      title,
+      teacher: teacherName,
+      teacherImg,
+      subject,
+      batch,
+      scheduledDate,
+      scheduledTime,
+      link,
+      description,
+      status,
+      updatedAt: Date.now()
+    };
+
+    if (status === 'live' && c.status !== 'live') {
+      updatePayload.startedAt = Date.now();
+    }
+
+    try {
+      await updateDoc(doc(db, 'liveClasses', classId), updatePayload);
+      modal.remove();
+    } catch (err) {
+      console.error("Failed to update live class:", err);
+      alert("Failed to update class: " + err.message);
+      btn.disabled = false;
+      btn.innerHTML = `Update Class`;
     }
   };
 };
@@ -5779,6 +6027,85 @@ let currentPlayingAudio = null;
 let currentPlayingBtn = null;
 let chatSelectedImageFile = null;
 
+let unreadChatUnsubscribe = null;
+window._unreadChatCount = 0;
+
+export function updateUnreadChatBadges(count) {
+  window._unreadChatCount = count;
+  const countDisplay = count > 99 ? '99+' : (count > 0 ? String(count) : '');
+  const isVisible = count > 0;
+
+  // Header quick icon badge
+  const headerBadge = document.getElementById('chat-unread-badge-header');
+  if (headerBadge) {
+    headerBadge.textContent = countDisplay;
+    headerBadge.style.display = isVisible ? 'flex' : 'none';
+  }
+
+  // Desktop nav badge
+  const desktopBadge = document.getElementById('chat-unread-badge-desktop');
+  if (desktopBadge) {
+    desktopBadge.textContent = countDisplay;
+    desktopBadge.style.display = isVisible ? 'inline-flex' : 'none';
+  }
+
+  // Mobile drawer badge
+  const drawerBadge = document.getElementById('chat-unread-badge-drawer');
+  if (drawerBadge) {
+    drawerBadge.textContent = countDisplay;
+    drawerBadge.style.display = isVisible ? 'inline-flex' : 'none';
+  }
+}
+
+export function listenForUnreadChat(user) {
+  if (unreadChatUnsubscribe) {
+    unreadChatUnsubscribe();
+    unreadChatUnsubscribe = null;
+  }
+  if (!user) {
+    updateUnreadChatBadges(0);
+    return;
+  }
+
+  // Initialize last viewed timestamp if not set
+  if (!localStorage.getItem('study_last_chat_viewed_time')) {
+    localStorage.setItem('study_last_chat_viewed_time', Date.now().toString());
+  }
+
+  const q = query(
+    collection(db, 'communityChat'),
+    orderBy('createdAt', 'desc'),
+    limit(100)
+  );
+
+  unreadChatUnsubscribe = onSnapshot(q, (snapshot) => {
+    // If the user is currently on the chat page, mark as viewed and clear badges
+    if (window.location.pathname === '/chat') {
+      localStorage.setItem('study_last_chat_viewed_time', Date.now().toString());
+      updateUnreadChatBadges(0);
+      return;
+    }
+
+    const lastViewed = parseInt(localStorage.getItem('study_last_chat_viewed_time') || '0', 10);
+    let count = 0;
+
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      const createdAtMs = data.createdAt?.toMillis ? data.createdAt.toMillis() : (data.timestamp || 0);
+      const senderUid = data.senderId || data.userId;
+
+      // Only count messages that arrived after lastViewed and not sent by current user
+      if (createdAtMs > lastViewed && senderUid !== user.uid) {
+        count++;
+      }
+    });
+
+    updateUnreadChatBadges(count);
+  }, (err) => {
+    console.warn("Unread chat listener error:", err);
+  });
+}
+
 // Clean helper to format timestamp
 function formatChatTime(timestamp) {
   if (!timestamp) return 'Just now';
@@ -5838,6 +6165,10 @@ export async function renderCommunityChat(user, navigateTo) {
   // Activate full viewport layout for chat
   document.body.classList.add('chat-fullscreen-mode');
 
+  // Immediately mark chat as viewed and clear unread badge
+  localStorage.setItem('study_last_chat_viewed_time', Date.now().toString());
+  updateUnreadChatBadges(0);
+
   // Cleanup old audio or listeners
   if (currentPlayingAudio) {
     currentPlayingAudio.pause();
@@ -5863,7 +6194,7 @@ export async function renderCommunityChat(user, navigateTo) {
                 </div>
                 <div class="min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
-                        <h2 class="text-base sm:text-lg font-bold text-[var(--text-primary)] truncate">Community Study Lounge</h2>
+                        <h2 class="text-base sm:text-lg font-bold text-[var(--text-primary)] truncate">💬 Chat Lounge</h2>
                         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                             Live
@@ -7608,6 +7939,8 @@ export async function renderCommunityChat(user, navigateTo) {
 
   // Subscribe to real-time chat updates
   chatUnsubscribe = listenCommunityChat((messages) => {
+    localStorage.setItem('study_last_chat_viewed_time', Date.now().toString());
+    updateUnreadChatBadges(0);
     renderMessagesList(messages);
   }, (err) => {
     if (messagesContainer) {
