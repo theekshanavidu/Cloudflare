@@ -1105,9 +1105,9 @@ export function renderRegister(navigate) {
 
                             <!-- School -->
                             <div class="space-y-1 text-left">
-                                <label class="text-[11px] font-semibold text-slate-300 block">School</label>
+                                <label class="text-[11px] font-semibold text-slate-300 block">School <span class="text-slate-500 font-normal">(Optional)</span></label>
                                 <div class="modern-auth-input-box">
-                                    <input name="school" placeholder="School Name" class="modern-auth-input !pl-9 text-xs" required>
+                                    <input name="school" placeholder="School Name (Optional)" class="modern-auth-input !pl-9 text-xs">
                                     <svg class="auth-input-icon !left-3 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
                                 </div>
                             </div>
@@ -3559,7 +3559,7 @@ export async function renderProfile(user) {
                      <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Birthday</label><input name="birthday" type="date" value="${d.birthday || ''}" class="smart-input" required></div>
                  </div>
                  <div class="grid md:grid-cols-2 gap-4">
-                      <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">School</label><input name="school" value="${d.school || ''}" class="smart-input" required></div>
+                      <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">School <span class="text-xs text-[var(--text-secondary)] font-normal lowercase">(optional)</span></label><input name="school" value="${d.school || ''}" class="smart-input" placeholder="School Name (Optional)"></div>
                       <div><label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Phone</label><input type="tel" name="phone" pattern="[0-9]{10}" maxlength="10" title="Please enter exactly 10 digits" value="${d.phone || ''}" class="smart-input" required></div>
                  </div>
                  <div>
