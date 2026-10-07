@@ -15,7 +15,7 @@ function navigateTo(path) {
     if (window.location.pathname === path) return;
     window.history.pushState({}, '', path);
     try {
-        if (path && path !== '/' && path !== '/welcome' && path !== '/login' && path !== '/register') {
+        if (path && path !== '/' && path !== '/welcome' && path !== '/login' && path !== '/register' && path !== '/reset-password') {
             sessionStorage.setItem('study_last_active_path', path);
         }
     } catch (e) {}
@@ -25,7 +25,7 @@ function navigateTo(path) {
 async function router() {
     const path = window.location.pathname === '/' ? '/home' : window.location.pathname;
     try {
-        if (path && path !== '/' && path !== '/welcome' && path !== '/login' && path !== '/register') {
+        if (path && path !== '/' && path !== '/welcome' && path !== '/login' && path !== '/register' && path !== '/reset-password') {
             sessionStorage.setItem('study_last_active_path', path);
         }
     } catch (e) {}
@@ -37,7 +37,7 @@ async function router() {
     }
 
     // Clean up countdown intervals when navigating away
-    if (path !== '/login' && path !== '/register' && window.authCountdownInterval) {
+    if (path !== '/login' && path !== '/register' && path !== '/reset-password' && window.authCountdownInterval) {
         clearInterval(window.authCountdownInterval);
         window.authCountdownInterval = null;
     }
@@ -47,8 +47,8 @@ async function router() {
     }
 
 
-    // Toggle auth background mode (removes periodic table canvas on login/register)
-    if (path === '/login' || path === '/register' || path === '/' || path === '/welcome') {
+    // Toggle auth background mode (removes periodic table canvas on login/register/reset)
+    if (path === '/login' || path === '/register' || path === '/' || path === '/welcome' || path === '/reset-password') {
         document.body.classList.add('auth-page-mode');
     } else {
         document.body.classList.remove('auth-page-mode');
@@ -75,6 +75,11 @@ async function router() {
         }
         if (path === '/register') {
             UI.renderRegister(navigateTo);
+            animatePageIn();
+            return;
+        }
+        if (path === '/reset-password') {
+            UI.renderResetPassword(navigateTo);
             animatePageIn();
             return;
         } else if (path === '/simulation') {
@@ -305,7 +310,7 @@ window.addEventListener('load', () => {
             let targetPath = '/home';
             try {
                 const savedPath = sessionStorage.getItem('study_last_active_path');
-                if (savedPath && savedPath !== '/' && savedPath !== '/welcome' && savedPath !== '/login' && savedPath !== '/register') {
+                if (savedPath && savedPath !== '/' && savedPath !== '/welcome' && savedPath !== '/login' && savedPath !== '/register' && savedPath !== '/reset-password') {
                     targetPath = savedPath;
                 }
             } catch (e) {}

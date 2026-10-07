@@ -10,7 +10,9 @@ import {
   updateEmail,
   verifyBeforeUpdateEmail,
   reauthenticateWithCredential,
-  EmailAuthProvider
+  EmailAuthProvider,
+  confirmPasswordReset,
+  verifyPasswordResetCode
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
   doc,
@@ -895,17 +897,56 @@ export function renderLogin(navigate) {
   };
 
   document.getElementById('forgot-password-btn').onclick = async () => {
-    const rawEmail = document.querySelector('#login-form input[name="email"]').value;
-    const emailInput = sanitizeInput((rawEmail || '').trim());
+    let emailInput = sanitizeInput((document.querySelector('#login-form input[name="email"]')?.value || '').trim());
     if (!emailInput) {
-        alert("Please enter your email address first.");
-        return;
+      const promptEmail = prompt("Please enter your registered email address to reset password:\nමුරපදය reset කිරීමට ඔබගේ ලියාපදිංචි ඊමේල් ලිපිනය ඇතුළත් කරන්න:");
+      if (!promptEmail) return;
+      emailInput = sanitizeInput(promptEmail.trim());
+      const emailField = document.querySelector('#login-form input[name="email"]');
+      if (emailField) emailField.value = emailInput;
     }
+    if (!emailInput) {
+      alert("Please enter your email address first.\nකරුණාකර ඔබගේ ඊමේල් ලිපිනය ඇතුළත් කරන්න.");
+      return;
+    }
+
+    const forgotBtn = document.getElementById('forgot-password-btn');
+    const originalText = forgotBtn ? forgotBtn.innerHTML : '';
+    if (forgotBtn) {
+      forgotBtn.disabled = true;
+      forgotBtn.innerHTML = '<span class="inline-flex items-center gap-1"><svg class="animate-spin h-3 w-3 text-indigo-400" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Sending...</span>';
+    }
+
+    const actionCodeSettings = {
+      url: 'https://mathsrecording.com/reset-password',
+      handleCodeInApp: true,
+    };
+
     try {
-        await sendPasswordResetEmail(auth, emailInput);
-        alert("Check Password reset link on your Email or email spam Folder");
+      await sendPasswordResetEmail(auth, emailInput, actionCodeSettings);
+      alert(`Password reset link sent successfully to ${emailInput}!\nPlease check your email inbox (and spam/junk folder).\n\nමුරපදය reset කිරීමේ ලින්ක් එක ඔබගේ ඊමේල් ලිපිනයට යවන ලදී. කරුණාකර Inbox හෝ Spam පරීක්ෂා කරන්න.`);
     } catch (err) {
-        alert(err.message);
+      console.error("Password reset error:", err);
+      if (err.code === 'auth/unauthorized-continue-uri') {
+        try {
+          await sendPasswordResetEmail(auth, emailInput);
+          alert(`Password reset link sent to ${emailInput}!\n(Notice: Custom domain not yet authorized in Firebase Console; sent standard Firebase link).\nPlease check your Inbox or Spam folder.`);
+          return;
+        } catch (fallbackErr) {
+          alert(fallbackErr.message || "Failed to send reset email.");
+        }
+      } else if (err.code === 'auth/user-not-found') {
+        alert("No account found with this email address.\nමෙම ඊමේල් ලිපිනයට අදාළ ගිණුමක් හමු නොවීය.");
+      } else if (err.code === 'auth/invalid-email') {
+        alert("Please enter a valid email address.\nවලංගු ඊමේල් ලිපිනයක් ඇතුළත් කරන්න.");
+      } else {
+        alert(err.message || "Error sending password reset email.");
+      }
+    } finally {
+      if (forgotBtn) {
+        forgotBtn.disabled = false;
+        forgotBtn.innerHTML = originalText;
+      }
     }
   };
 
@@ -1265,6 +1306,382 @@ export function renderRegister(navigate) {
   };
 
   startAuthCountdownTimer();
+}
+
+// --- Reset Password Page ---
+export function renderResetPassword(navigate) {
+  headerElement.style.display = 'none';
+  document.body.classList.add('auth-page-mode');
+
+  // Parse reset code (oobCode) from URL search parameters or hash
+  const urlParams = new URLSearchParams(window.location.search);
+  let oobCode = urlParams.get('oobCode') || urlParams.get('code');
+  if (!oobCode && window.location.hash) {
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#\/?/, ''));
+    oobCode = hashParams.get('oobCode') || hashParams.get('code');
+  }
+
+  // Base shell with ambient glow and responsive layout
+  const renderResetShell = (cardContent) => {
+    appContainer.innerHTML = `
+      <div class="min-h-[85vh] w-full flex items-center justify-center p-4 md:p-8 lg:p-12 relative overflow-hidden">
+        <!-- Background Ambient Aurora Glows -->
+        <div class="aurora-orb w-96 h-96 bg-indigo-600/20 -top-20 -left-20 pointer-events-none"></div>
+        <div class="aurora-orb w-96 h-96 bg-cyan-500/15 -bottom-20 -right-20 pointer-events-none" style="animation-delay: -4s;"></div>
+
+        <div class="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+          <!-- Left Hero Panel (Desktop) -->
+          ${getAuthHeroHTML()}
+
+          <!-- Right Action Card -->
+          <div class="lg:col-span-6 w-full max-w-md mx-auto">
+            <div class="neo-glass-auth rounded-3xl p-6 md:p-8 relative border border-indigo-500/25 shadow-2xl overflow-hidden">
+              <div class="hidden md:block absolute top-0 left-1/4 right-1/4 h-[2px] bg-gradient-to-r from-transparent via-indigo-400 to-transparent"></div>
+              ${cardContent}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    startAuthCountdownTimer();
+  };
+
+  // Case 1: Missing oobCode
+  if (!oobCode) {
+    renderResetShell(`
+      <div class="text-center py-4 space-y-4">
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-2xl shadow-lg shadow-amber-500/10">
+          ⚠️
+        </div>
+        <div class="space-y-1">
+          <h2 class="text-xl font-bold font-display text-white">Invalid Reset Link</h2>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            මුරපදය reset කිරීමේ කේතයක් (oobCode) හමු නොවීය. කරුණාකර Login පිටුවෙන් නැවත මුරපදය reset කිරීමට ඉල්ලුම් කරන්න.
+          </p>
+          <p class="text-[11px] text-slate-500">
+            No password reset code found in this URL. Please request a new link from the login page.
+          </p>
+        </div>
+        <button type="button" id="back-to-login-btn" class="w-full btn-auth-gradient py-3.5 rounded-xl font-bold text-white shadow-xl text-xs tracking-wide">
+          Back to Sign In (නැවත පිවිසෙන්න)
+        </button>
+      </div>
+    `);
+    const backBtn = document.getElementById('back-to-login-btn');
+    if (backBtn) backBtn.onclick = () => navigate('/login');
+    return;
+  }
+
+  // Case 2: Verifying oobCode
+  renderResetShell(`
+    <div class="text-center py-8 space-y-4">
+      <div class="w-16 h-16 mx-auto rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shadow-lg shadow-indigo-500/10">
+        <svg class="animate-spin w-8 h-8" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+      </div>
+      <div>
+        <h2 class="text-lg font-bold font-display text-white">Verifying Reset Link...</h2>
+        <p class="text-xs text-slate-400">කරුණාකර රැඳී සිටින්න, ආරක්ෂක කේතය පරීක්ෂා කෙරේ...</p>
+      </div>
+    </div>
+  `);
+
+  // Verify the code with Firebase Auth
+  verifyPasswordResetCode(auth, oobCode)
+    .then((userEmail) => {
+      // Code is valid! Render password reset form
+      renderResetShell(`
+        <!-- Brand Header -->
+        <div class="flex items-center justify-between mb-5">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-2xl bg-white p-1.5 shadow-md shadow-indigo-500/20 flex-shrink-0">
+              <img src="/icon.png" alt="StudyTracker Logo" class="w-full h-full object-contain">
+            </div>
+            <div>
+              <h1 class="text-xl font-bold font-display text-white">Reset Password 🔑</h1>
+              <p class="text-xs text-slate-400 truncate max-w-[210px]" title="${escapeHTML(userEmail || '')}">For: <span class="text-indigo-400 font-semibold">${escapeHTML(userEmail || '')}</span></p>
+            </div>
+          </div>
+          <span class="text-[10px] px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            Verified
+          </span>
+        </div>
+
+        <form id="new-password-form" class="space-y-4" action="javascript:void(0);" method="POST">
+          <!-- New Password Input -->
+          <div class="space-y-1.5 text-left">
+            <label class="text-xs font-semibold text-slate-300 flex items-center justify-between">
+              <span>New Password</span>
+              <span class="text-[10px] text-slate-500">Min 6 characters</span>
+            </label>
+            <div class="modern-auth-input-box">
+              <input type="password" id="reset-new-password" name="newPassword" placeholder="••••••••••••" class="modern-auth-input pr-12" required autocomplete="new-password">
+              <svg class="auth-input-icon w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+              </svg>
+              <button type="button" id="toggle-reset-new-pass" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-1" title="Show/Hide Password">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+              </button>
+            </div>
+            <!-- Strength Indicator -->
+            <div class="space-y-1 pt-1">
+              <div class="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div id="reset-strength-bar" class="h-full w-0 transition-all duration-300"></div>
+              </div>
+              <div class="flex justify-between items-center text-[10px]">
+                <span class="text-slate-500">Security:</span>
+                <span id="reset-strength-text" class="text-slate-500">Enter a password</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Confirm Password Input -->
+          <div class="space-y-1.5 text-left">
+            <label class="text-xs font-semibold text-slate-300">Confirm New Password</label>
+            <div class="modern-auth-input-box">
+              <input type="password" id="reset-confirm-password" name="confirmPassword" placeholder="••••••••••••" class="modern-auth-input pr-12" required autocomplete="new-password">
+              <svg class="auth-input-icon w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              </svg>
+              <button type="button" id="toggle-reset-confirm-pass" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-1" title="Show/Hide Password">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+              </button>
+            </div>
+            <div id="reset-match-feedback" class="text-[10px] text-slate-500 pt-0.5"></div>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" id="reset-submit-btn" class="w-full btn-auth-gradient py-3.5 rounded-xl font-bold text-white shadow-xl flex items-center justify-center gap-2 text-sm tracking-wide mt-2">
+            <span>Update Password</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+          </button>
+        </form>
+
+        <div class="mt-6 pt-4 border-t border-slate-800 text-center">
+          <p class="text-xs text-slate-400">
+            Remember your credentials? 
+            <button type="button" id="cancel-reset-btn" class="text-indigo-400 hover:text-indigo-300 font-semibold underline underline-offset-4 ml-1">
+              Sign In
+            </button>
+          </p>
+        </div>
+      `);
+
+      // Wire up password visibility toggle
+      const newPassInput = document.getElementById('reset-new-password');
+      const confirmPassInput = document.getElementById('reset-confirm-password');
+      const toggleNewBtn = document.getElementById('toggle-reset-new-pass');
+      const toggleConfirmBtn = document.getElementById('toggle-reset-confirm-pass');
+      const strengthBar = document.getElementById('reset-strength-bar');
+      const strengthText = document.getElementById('reset-strength-text');
+      const matchFeedback = document.getElementById('reset-match-feedback');
+      const cancelBtn = document.getElementById('cancel-reset-btn');
+
+      if (cancelBtn) cancelBtn.onclick = () => navigate('/login');
+
+      if (toggleNewBtn && newPassInput) {
+        toggleNewBtn.onclick = () => {
+          newPassInput.type = newPassInput.type === 'password' ? 'text' : 'password';
+        };
+      }
+      if (toggleConfirmBtn && confirmPassInput) {
+        toggleConfirmBtn.onclick = () => {
+          confirmPassInput.type = confirmPassInput.type === 'password' ? 'text' : 'password';
+        };
+      }
+
+      // Live password strength calculation
+      if (newPassInput && strengthBar && strengthText) {
+        newPassInput.oninput = (e) => {
+          const val = e.target.value;
+          if (!val) {
+            strengthBar.style.width = '0%';
+            strengthText.className = 'text-slate-500';
+            strengthText.textContent = 'Enter a password';
+          } else if (val.length < 6) {
+            strengthBar.style.width = '25%';
+            strengthBar.className = 'h-full bg-rose-500 rounded-full transition-all duration-300';
+            strengthText.className = 'text-rose-400 font-bold';
+            strengthText.textContent = 'Too Short (Min 6 chars)';
+          } else if (val.length < 8) {
+            strengthBar.style.width = '55%';
+            strengthBar.className = 'h-full bg-amber-400 rounded-full transition-all duration-300';
+            strengthText.className = 'text-amber-400 font-bold';
+            strengthText.textContent = 'Medium (Add symbols/numbers)';
+          } else {
+            strengthBar.style.width = '100%';
+            strengthBar.className = 'h-full bg-emerald-400 rounded-full transition-all duration-300';
+            strengthText.className = 'text-emerald-400 font-bold';
+            strengthText.textContent = 'Strong Password ✓';
+          }
+
+          if (confirmPassInput && confirmPassInput.value) {
+            checkMatch();
+          }
+        };
+      }
+
+      const checkMatch = () => {
+        if (!confirmPassInput || !matchFeedback) return;
+        if (!confirmPassInput.value) {
+          matchFeedback.textContent = '';
+          return;
+        }
+        if (newPassInput && newPassInput.value === confirmPassInput.value) {
+          matchFeedback.className = 'text-[10px] text-emerald-400 font-semibold pt-0.5';
+          matchFeedback.textContent = 'Passwords match ✓';
+        } else {
+          matchFeedback.className = 'text-[10px] text-rose-400 font-semibold pt-0.5';
+          matchFeedback.textContent = 'Passwords do not match ✗';
+        }
+      };
+
+      if (confirmPassInput) {
+        confirmPassInput.oninput = checkMatch;
+      }
+
+      // Password Reset Form Submit
+      const resetForm = document.getElementById('new-password-form');
+      if (resetForm) {
+        resetForm.onsubmit = async (e) => {
+          e.preventDefault();
+          const newPassword = newPassInput ? newPassInput.value : '';
+          const confirmPassword = confirmPassInput ? confirmPassInput.value : '';
+
+          if (!newPassword || newPassword.length < 6) {
+            alert("Password must be at least 6 characters long.\nමුරපදය අවම වශයෙන් අකුරු/ඉලක්කම් 6ක් විය යුතුය.");
+            if (newPassInput) newPassInput.focus();
+            return;
+          }
+
+          if (newPassword !== confirmPassword) {
+            alert("Passwords do not match. Please re-enter.\nමුරපද දෙක නොගැලපේ. කරුණාකර නැවත පරීක්ෂා කරන්න.");
+            if (confirmPassInput) confirmPassInput.focus();
+            return;
+          }
+
+          const submitBtn = document.getElementById('reset-submit-btn');
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `
+              <svg class="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              <span>Updating Password...</span>
+            `;
+          }
+
+          try {
+            await confirmPasswordReset(auth, oobCode, newPassword);
+
+            // Trigger confetti
+            if (typeof confetti === 'function') {
+              confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+              });
+            }
+
+            // Render Success Screen
+            renderResetShell(`
+              <div class="text-center py-6 space-y-5">
+                <div class="w-16 h-16 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-3xl shadow-lg shadow-emerald-500/20">
+                  ✓
+                </div>
+                <div class="space-y-1.5">
+                  <h2 class="text-xl font-bold font-display text-white">Password Updated! 🎉</h2>
+                  <p class="text-xs text-slate-300 leading-relaxed">
+                    Your password has been successfully changed.<br>
+                    <span class="text-slate-400">ඔබගේ මුරපදය සාර්ථකව වෙනස් කරන ලදී. දැන් ඔබට නව මුරපදය මඟින් Login විය හැක.</span>
+                  </p>
+                </div>
+
+                <div class="p-3 rounded-xl bg-slate-900/80 border border-white/5 text-xs text-slate-400">
+                  Redirecting to Sign In in <span id="redirect-timer" class="text-indigo-400 font-bold">4</span>s...
+                </div>
+
+                <button type="button" id="go-login-now-btn" class="w-full btn-auth-gradient py-3.5 rounded-xl font-bold text-white shadow-xl text-sm tracking-wide">
+                  Sign In Now (දැන් Login වන්න)
+                </button>
+              </div>
+            `);
+
+            let count = 4;
+            const timerElem = document.getElementById('redirect-timer');
+            const countdown = setInterval(() => {
+              count--;
+              if (timerElem) timerElem.textContent = count;
+              if (count <= 0) {
+                clearInterval(countdown);
+                navigate('/login');
+              }
+            }, 1000);
+
+            const goLoginBtn = document.getElementById('go-login-now-btn');
+            if (goLoginBtn) {
+              goLoginBtn.onclick = () => {
+                clearInterval(countdown);
+                navigate('/login');
+              };
+            }
+          } catch (err) {
+            console.error("confirmPasswordReset error:", err);
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.innerHTML = `<span>Update Password</span><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>`;
+            }
+            if (err.code === 'auth/expired-action-code') {
+              alert("This reset link has expired. Please request a new one.\nමෙම ලින්ක් එක කල් ඉකුත් වී ඇත. කරුණාකර නැවත ඉල්ලුම් කරන්න.");
+              navigate('/login');
+            } else if (err.code === 'auth/invalid-action-code') {
+              alert("This reset code is invalid or has already been used.\nමෙම කේතය වලංගු නැත හෝ දැනටමත් භාවිතා කර ඇත.");
+              navigate('/login');
+            } else if (err.code === 'auth/weak-password') {
+              alert("The password is too weak. Please choose a stronger password.\nමුරපදය ප්‍රමාණවත් තරම් ශක්තිමත් නැත. වඩා ශක්තිමත් මුරපදයක් ඇතුළත් කරන්න.");
+            } else {
+              alert(err.message || "Failed to reset password. Please try again.");
+            }
+          }
+        };
+      }
+    })
+    .catch((err) => {
+      console.error("verifyPasswordResetCode error:", err);
+      renderResetShell(`
+        <div class="text-center py-5 space-y-4">
+          <div class="w-16 h-16 mx-auto rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 text-3xl shadow-lg shadow-rose-500/10">
+            ⚠️
+          </div>
+          <div class="space-y-1.5">
+            <h2 class="text-lg font-bold font-display text-white">Reset Link Expired or Invalid</h2>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              මෙම මුරපද යළි පිහිටුවීමේ ලින්ක් එක වලංගු නැත හෝ කල් ඉකුත් වී ඇත (දැනටමත් භාවිතා කර තිබිය හැක).
+            </p>
+            <p class="text-[11px] text-slate-500">
+              The reset code is invalid or has expired. Please request a new link.
+            </p>
+          </div>
+          <button type="button" id="request-new-link-btn" class="w-full btn-auth-gradient py-3.5 rounded-xl font-bold text-white shadow-xl text-xs tracking-wide">
+            Request New Link (නව ලින්ක් එකක් ඉල්ලුම් කරන්න)
+          </button>
+        </div>
+      `);
+      const reqBtn = document.getElementById('request-new-link-btn');
+      if (reqBtn) reqBtn.onclick = () => navigate('/login');
+    });
 }
 
 // --- Dashboard ---
