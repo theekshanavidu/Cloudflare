@@ -3285,6 +3285,12 @@ export async function checkCanEditLecture(user, subject = null) {
 
 export async function openLessonPage(subject, type, day, user) {
   const currentYear = getLectureYear();
+
+  if (currentYear === '2027' && (subject === 'com-maths-ruwan-full' || subject === 'biology' || subject === 'ravindu-ict')) {
+    if (window.navigateTo) window.navigateTo('/recordings');
+    return;
+  }
+
   const lessonId = `${subject}_${type}_${day}`;
   const cacheKey = `${lessonId}_${currentYear}`;
   const canEdit = await checkCanEditLecture(user, subject);
@@ -3303,7 +3309,7 @@ export async function openLessonPage(subject, type, day, user) {
   const subjectDisplayNames = {
     'ravindu-ict': 'ICT',
     'vikum-maths': 'Combine Maths',
-    'com-maths-manoj': 'Combine Maths 2025',
+    'com-maths-manoj': currentYear === '2027' ? 'Combine Maths' : 'Combine Maths 2025',
     'com-maths-ruwan-full': 'Com Maths Full Syllabus 2025',
     'physics-nilantha': 'Physics',
     'chemistry': 'Chemistry',
@@ -3793,16 +3799,34 @@ import ravinduImg from '../assets/teachers/ravindu.jpg';
 
 export function renderSubjects(navigate) {
   const currentYear = getLectureYear();
-  const TEACHERS = [
-    { id: 'maths', name: 'Ruwan Darshana', subject: 'Combined Maths', img: 'https://api.combinedmaths.lk/files-public/profiles/281124/1862199793225306112.jpg', color: 'indigo' },
-    { id: 'com-maths-ruwan-full', name: 'Ruwan Darshana', subject: 'Com Maths Full Syllabus 2025', img: 'https://api.combinedmaths.lk/files-public/profiles/281124/1862199793225306112.jpg', color: 'indigo' },
-    { id: 'com-maths-manoj', name: 'Manoj Solangarachchi', subject: 'Combine Maths 2025', img: monojImg, color: 'blue' },
-    { id: 'biology', name: 'Dinesh Muthugala', subject: 'Biology', img: dineshImg, color: 'green' },
-    { id: 'physics', name: 'Anuradha Perera', subject: 'Physics', img: 'https://static.indeepa.lk/lecturer/7/en/652248466c448.jpg', color: 'cyan' },
-    { id: 'chemistry', name: 'Amila Dasanayake', subject: 'Chemistry', img: 'https://static.indeepa.lk/lecturer/6/en/6522475ddf2bf.jpg', color: 'emerald' },
-    { id: 'vikum-maths', name: 'Vikum Harshana', subject: 'Combine Maths', img: vikumImg, color: 'purple' },
-    { id: 'ravindu-ict', name: 'Ravindu Bandaranayake', subject: 'ICT', img: ravinduImg, color: 'sky' }
-  ];
+  let TEACHERS = [];
+
+  if (currentYear === '2027') {
+    TEACHERS = [
+      { id: 'maths', name: 'Ruwan Darshana', subject: 'Combined Maths', img: 'https://api.combinedmaths.lk/files-public/profiles/281124/1862199793225306112.jpg', color: 'indigo' },
+      { id: 'com-maths-manoj', name: 'Manoj Solangarachchi', subject: 'Combine Maths', img: monojImg, color: 'blue' },
+      { id: 'physics', name: 'Anuradha Perera', subject: 'Physics', img: 'https://static.indeepa.lk/lecturer/7/en/652248466c448.jpg', color: 'cyan' },
+      { id: 'chemistry', name: 'Amila Dasanayake', subject: 'Chemistry', img: 'https://static.indeepa.lk/lecturer/6/en/6522475ddf2bf.jpg', color: 'emerald' },
+      { id: 'vikum-maths', name: 'Vikum Harshana', subject: 'Combine Maths', img: vikumImg, color: 'purple' }
+    ];
+  } else {
+    // 2026 Batch (Default)
+    TEACHERS = [
+      { id: 'maths', name: 'Ruwan Darshana', subject: 'Combined Maths', img: 'https://api.combinedmaths.lk/files-public/profiles/281124/1862199793225306112.jpg', color: 'indigo' },
+      { id: 'com-maths-ruwan-full', name: 'Ruwan Darshana', subject: 'Com Maths Full Syllabus 2025', img: 'https://api.combinedmaths.lk/files-public/profiles/281124/1862199793225306112.jpg', color: 'indigo' },
+      { id: 'com-maths-manoj', name: 'Manoj Solangarachchi', subject: 'Combine Maths 2025', img: monojImg, color: 'blue' },
+      { id: 'biology', name: 'Dinesh Muthugala', subject: 'Biology', img: dineshImg, color: 'green' },
+      { id: 'physics', name: 'Anuradha Perera', subject: 'Physics', img: 'https://static.indeepa.lk/lecturer/7/en/652248466c448.jpg', color: 'cyan' },
+      { id: 'chemistry', name: 'Amila Dasanayake', subject: 'Chemistry', img: 'https://static.indeepa.lk/lecturer/6/en/6522475ddf2bf.jpg', color: 'emerald' },
+      { id: 'vikum-maths', name: 'Vikum Harshana', subject: 'Combine Maths', img: vikumImg, color: 'purple' },
+      { id: 'ravindu-ict', name: 'Ravindu Bandaranayake', subject: 'ICT', img: ravinduImg, color: 'sky' }
+    ];
+  }
+
+  const gridClass = currentYear === '2027' 
+    ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-8 justify-center'
+    : 'grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 justify-center';
+
   appContainer.innerHTML = `
         <div class="max-w-6xl mx-auto pt-8">
             <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
@@ -3812,7 +3836,7 @@ export function renderSubjects(navigate) {
                 </div>
                 ${renderLectureYearSwitcher(currentYear, 'large')}
             </div>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 justify-center">
+            <div class="${gridClass}">
                 ${TEACHERS.map(t => `
                     <div class="smart-card p-0 overflow-hidden cursor-pointer group flex flex-col" onclick="navigateTo('/recording/${t.id}')">
                         <div class="h-28 sm:h-56 overflow-hidden"><img src="${t.img}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"></div>
@@ -3829,6 +3853,11 @@ export function renderSubjects(navigate) {
 
 export function renderType(subject, navigate) {
   const currentYear = getLectureYear();
+
+  if (currentYear === '2027' && (subject === 'com-maths-ruwan-full' || subject === 'biology' || subject === 'ravindu-ict')) {
+    navigate('/recordings');
+    return;
+  }
 
   if (subject === 'vikum-maths') {
     appContainer.innerHTML = `
@@ -3895,7 +3924,8 @@ export function renderType(subject, navigate) {
   }
 
   if (subject === 'com-maths-manoj' || subject === 'com-maths-ruwan-full') {
-    const title = subject === 'com-maths-ruwan-full' ? 'Com Maths Full Syllabus 2025' : 'Combine Maths 2025';
+    const title = subject === 'com-maths-ruwan-full' ? 'Com Maths Full Syllabus 2025' : (currentYear === '2027' ? 'Combine Maths' : 'Combine Maths 2025');
+    const teacherName = subject === 'com-maths-ruwan-full' ? 'Ruwan Darshana' : 'Manoj Solangarachchi';
     appContainer.innerHTML = `
         <div class="max-w-4xl mx-auto pt-8">
             <div class="flex items-center justify-between mb-8 flex-wrap gap-3">
@@ -3906,7 +3936,7 @@ export function renderType(subject, navigate) {
             </div>
             <div class="text-center mb-8">
                 <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-2 uppercase tracking-widest">${title}</h2>
-                <p class="text-sm text-[var(--text-secondary)]"><span class="font-bold text-indigo-400">${currentYear} A/L</span></p>
+                <p class="text-sm text-[var(--text-secondary)]">${teacherName} • <span class="font-bold text-indigo-400">${currentYear} A/L</span></p>
             </div>
             <div class="grid grid-cols-2 gap-4 mt-8 max-w-2xl mx-auto">
                 <div onclick="navigateTo('/recording/${subject}/pure-maths')" class="smart-card hover:border-indigo-500 cursor-pointer group p-4 md:p-8 text-center"><div class="text-3xl md:text-6xl mb-2 md:mb-4 group-hover:scale-110 transition-transform">📐</div><h3 class="text-base md:text-2xl font-bold text-[var(--text-primary)]">Pure Maths</h3></div>
@@ -3961,6 +3991,11 @@ export function renderType(subject, navigate) {
 
 export async function renderLessons(subject, type, navigate, user) {
   const currentYear = getLectureYear();
+
+  if (currentYear === '2027' && (subject === 'com-maths-ruwan-full' || subject === 'biology' || subject === 'ravindu-ict')) {
+    navigate('/recordings');
+    return;
+  }
 
   if (subject === 'vikum-maths' && type === 'supportive') {
     appContainer.innerHTML = `
@@ -4054,7 +4089,7 @@ export async function renderLessons(subject, type, navigate, user) {
   const subjectDisplayNames = {
     'ravindu-ict': 'ICT',
     'vikum-maths': 'Combine Maths',
-    'com-maths-manoj': 'Combine Maths 2025',
+    'com-maths-manoj': currentYear === '2027' ? 'Combine Maths' : 'Combine Maths 2025',
     'com-maths-ruwan-full': 'Com Maths Full Syllabus 2025',
     'physics-nilantha': 'Physics',
     'chemistry': 'Chemistry',
