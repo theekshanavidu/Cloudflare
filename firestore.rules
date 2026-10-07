@@ -109,7 +109,8 @@ service cloud.firestore {
     // ================= LIVE CLASSES (Broadcasts & Streaming) =================
     match /liveClasses/{classId} {
       allow read: if true;
-      allow create, update, delete: if isModerator();
+      allow create, update: if isModerator();
+      allow delete: if isModerator() || (isAuthenticated() && resource.data.endTimestamp != null && request.time.toMillis() >= resource.data.endTimestamp);
     }
 
     // ================= SETTINGS =================

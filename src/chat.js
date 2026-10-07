@@ -174,6 +174,28 @@ async function getSenderDetails(user) {
 }
 
 /**
+ * Helper to safely sanitize replyTo data so Firestore never receives undefined properties
+ */
+function sanitizeReplyTo(replyTo) {
+  if (!replyTo) return null;
+  const replyId = String(replyTo.messageId || replyTo.id || '').trim();
+  if (!replyId) return null;
+
+  const sender = sanitizeInput(String(replyTo.senderName || 'Student').trim());
+  const snippet = sanitizeInput(String(replyTo.textSnippet || replyTo.text || '').trim());
+  const type = sanitizeInput(String(replyTo.messageType || 'text').trim());
+
+  return {
+    id: replyId,
+    messageId: replyId,
+    senderName: sender || 'Student',
+    text: snippet,
+    textSnippet: snippet,
+    messageType: type || 'text'
+  };
+}
+
+/**
  * Send a plain text message
  */
 export async function sendTextMessage(user, text, replyTo = null) {
@@ -191,12 +213,7 @@ export async function sendTextMessage(user, text, replyTo = null) {
 
   const expireAtTimestamp = now + (30 * 24 * 60 * 60 * 1000); // Exactly 30 days from now
 
-  const sanitizedReplyTo = replyTo ? {
-    id: replyTo.id,
-    senderName: sanitizeInput(replyTo.senderName || ''),
-    text: sanitizeInput(replyTo.text || ''),
-    messageType: replyTo.messageType || 'text'
-  } : null;
+  const sanitizedReplyTo = sanitizeReplyTo(replyTo);
 
   const messageDoc = {
     senderId: user.uid,
@@ -307,12 +324,7 @@ export async function sendImageMessage(user, file, optionalCaption = '', replyTo
     const { senderName, senderPhoto, isPhotoPublic, senderRole } = await getSenderDetails(user);
     const expireAtTimestamp = now + (30 * 24 * 60 * 60 * 1000);
 
-    const sanitizedReplyTo = replyTo ? {
-      id: replyTo.id,
-      senderName: sanitizeInput(replyTo.senderName || ''),
-      text: sanitizeInput(replyTo.text || ''),
-      messageType: replyTo.messageType || 'text'
-    } : null;
+    const sanitizedReplyTo = sanitizeReplyTo(replyTo);
 
     const messageDoc = {
       senderId: user.uid,
@@ -381,12 +393,7 @@ export async function sendPdfMessage(user, file, optionalCaption = '', replyTo =
     const { senderName, senderPhoto, isPhotoPublic, senderRole } = await getSenderDetails(user);
     const expireAtTimestamp = now + (30 * 24 * 60 * 60 * 1000);
 
-    const sanitizedReplyTo = replyTo ? {
-      id: replyTo.id,
-      senderName: sanitizeInput(replyTo.senderName || ''),
-      text: sanitizeInput(replyTo.text || ''),
-      messageType: replyTo.messageType || 'document'
-    } : null;
+    const sanitizedReplyTo = sanitizeReplyTo(replyTo);
 
     const messageDoc = {
       senderId: user.uid,
@@ -540,6 +547,7 @@ export async function sendVoiceMessage(user, audioBlob, durationSeconds, replyTo
 
     const { senderName, senderPhoto, isPhotoPublic, senderRole } = await getSenderDetails(user);
     const expireAtTimestamp = now + (30 * 24 * 60 * 60 * 1000);
+    const sanitizedReplyTo = sanitizeReplyTo(replyTo);
 
     const messageDoc = {
       senderId: user.uid,
@@ -551,7 +559,7 @@ export async function sendVoiceMessage(user, audioBlob, durationSeconds, replyTo
       text: '',
       mediaUrl: mediaUrl,
       audioDuration: durationSeconds || 1,
-      replyTo: replyTo || null,
+      replyTo: sanitizedReplyTo,
       createdAt: serverTimestamp(),
       timestamp: now,
       expireAt: new Date(expireAtTimestamp)

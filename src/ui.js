@@ -5279,16 +5279,73 @@ export function timeTo24h(timeStr) {
   return `${hours < 10 ? '0' + hours : hours}:${minutes}`;
 }
 
+export function getClassEndTimestamp(scheduledDate, scheduledStartTime, scheduledEndTime) {
+  if (!scheduledDate || !scheduledEndTime) return null;
+  try {
+    const dateParts = scheduledDate.split('-');
+    if (dateParts.length !== 3) return null;
+    const year = parseInt(dateParts[0], 10);
+    const month = parseInt(dateParts[1], 10) - 1;
+    const day = parseInt(dateParts[2], 10);
+
+    const end24 = timeTo24h(scheduledEndTime);
+    const [endH, endM] = end24.split(':').map(v => parseInt(v, 10));
+
+    const endDate = new Date(year, month, day, endH, endM, 0, 0);
+
+    if (scheduledStartTime) {
+      const start24 = timeTo24h(scheduledStartTime);
+      const [startH, startM] = start24.split(':').map(v => parseInt(v, 10));
+      const startDate = new Date(year, month, day, startH, startM, 0, 0);
+      if (endDate <= startDate) {
+        endDate.setDate(endDate.getDate() + 1);
+      }
+    }
+
+    return endDate.getTime();
+  } catch (e) {
+    console.error("Error calculating class end timestamp:", e);
+    return null;
+  }
+}
+
+export function isClassExpired(c) {
+  if (!c) return false;
+  if (c.endTimestamp && typeof c.endTimestamp === 'number') {
+    return Date.now() >= c.endTimestamp;
+  }
+  if (c.scheduledEndTime && c.scheduledDate) {
+    const endMs = getClassEndTimestamp(c.scheduledDate, c.scheduledTime, c.scheduledEndTime);
+    if (endMs && Date.now() >= endMs) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function startLiveClassesListener() {
   if (liveClassesUnsubscribe) return;
 
   try {
     const q = query(collection(db, 'liveClasses'), orderBy('createdAt', 'desc'));
     liveClassesUnsubscribe = onSnapshot(q, (snapshot) => {
-      const classes = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      window._liveClassesData = classes;
+      const rawClasses = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
-      const liveList = classes.filter(c => c.status === 'live');
+      // Automatically filter out and delete expired classes
+      const activeClasses = [];
+      rawClasses.forEach(c => {
+        if (isClassExpired(c)) {
+          deleteDoc(doc(db, 'liveClasses', c.id)).catch(err => {
+            console.warn("Could not delete expired live class:", c.id, err);
+          });
+        } else {
+          activeClasses.push(c);
+        }
+      });
+
+      window._liveClassesData = activeClasses;
+
+      const liveList = activeClasses.filter(c => c.status === 'live');
       const hasLive = liveList.length > 0;
       window._hasLiveClasses = hasLive;
 
@@ -5302,11 +5359,36 @@ export function startLiveClassesListener() {
 
       // Update /live page immediately without page refresh
       if (window.location.pathname === '/live' && typeof window._renderLiveCards === 'function') {
-        window._renderLiveCards(classes);
+        window._renderLiveCards(activeClasses);
       }
     }, (error) => {
       console.error("Error listening to live classes in real-time:", error);
     });
+
+    // Run periodic check every 15 seconds to ensure classes auto-delete right after end time passes
+    if (!window._liveClassCleanupInterval) {
+      window._liveClassCleanupInterval = setInterval(() => {
+        if (!window._liveClassesData || window._liveClassesData.length === 0) return;
+        const expired = window._liveClassesData.filter(c => isClassExpired(c));
+        if (expired.length > 0) {
+          expired.forEach(c => {
+            deleteDoc(doc(db, 'liveClasses', c.id)).catch(err => console.warn(err));
+          });
+          window._liveClassesData = window._liveClassesData.filter(c => !isClassExpired(c));
+          const hasLive = window._liveClassesData.some(c => c.status === 'live');
+          window._hasLiveClasses = hasLive;
+          document.querySelectorAll('.live-indicator-dot').forEach(el => {
+            el.style.display = hasLive ? 'inline-block' : 'none';
+          });
+          document.querySelectorAll('.mobile-live-indicator-dot').forEach(el => {
+            el.style.display = hasLive ? 'block' : 'none';
+          });
+          if (window.location.pathname === '/live' && typeof window._renderLiveCards === 'function') {
+            window._renderLiveCards(window._liveClassesData);
+          }
+        }
+      }, 15000);
+    }
   } catch (err) {
     console.error("Failed to start live classes listener:", err);
   }
@@ -5350,8 +5432,9 @@ export async function renderLiveClasses(user, navigateTo) {
     const container = document.getElementById('live-content-container');
     if (!container) return;
 
-    const liveClasses = classes.filter(c => c.status === 'live');
-    const upcomingClasses = classes.filter(c => c.status === 'upcoming');
+    const activeClasses = (classes || []).filter(c => !isClassExpired(c));
+    const liveClasses = activeClasses.filter(c => c.status === 'live');
+    const upcomingClasses = activeClasses.filter(c => c.status === 'upcoming');
 
     if (liveClasses.length === 0 && upcomingClasses.length === 0) {
       container.innerHTML = `
@@ -5417,6 +5500,14 @@ export async function renderLiveClasses(user, navigateTo) {
                                     <h4 class="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider truncate">${c.teacher}</h4>
                                     <h3 class="text-base font-bold text-[var(--text-primary)] line-clamp-2 mt-0.5">${c.title}</h3>
                                 </div>
+                            </div>
+
+                            <!-- Date / Time on Live card -->
+                            <div class="flex items-center gap-2 bg-red-500/10 p-2.5 rounded-xl border border-red-500/20 text-xs font-semibold text-[var(--text-secondary)] mb-4">
+                                <span class="flex items-center gap-1 text-red-400 font-bold">
+                                    <span>⏰</span> ${formatTime12h(c.scheduledTime) || 'Started'}${c.scheduledEndTime ? ' - ' + formatTime12h(c.scheduledEndTime) : ''}
+                                </span>
+                                ${c.scheduledEndTime ? `<span class="text-[10px] text-[var(--text-secondary)] ml-auto opacity-75">Auto-ends: ${formatTime12h(c.scheduledEndTime)}</span>` : ''}
                             </div>
 
                             ${c.description ? `<p class="text-xs text-[var(--text-secondary)] mb-4 line-clamp-2 bg-[var(--bg-root)] p-2.5 rounded-lg border border-[var(--glass-border)]">${c.description}</p>` : ''}
@@ -5497,7 +5588,7 @@ export async function renderLiveClasses(user, navigateTo) {
                                 </span>
                                 <span class="text-slate-600">•</span>
                                 <span class="flex items-center gap-1 text-indigo-400">
-                                    <span>⏰</span> ${formatTime12h(c.scheduledTime) || 'TBD'}
+                                    <span>⏰</span> ${formatTime12h(c.scheduledTime) || 'TBD'}${c.scheduledEndTime ? ' - ' + formatTime12h(c.scheduledEndTime) : ''}
                                 </span>
                             </div>
 
@@ -5603,14 +5694,18 @@ window.openAddLiveClassModal = () => {
                 <input id="live-title-input" placeholder="e.g. Wave Optics Theory Revision" class="smart-input w-full" required>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                     <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Scheduled Date</label>
-                    <input type="date" id="live-date-input" class="smart-input w-full" value="${new Date().toISOString().slice(0, 10)}">
+                    <input type="date" id="live-date-input" class="smart-input w-full" value="${new Date().toISOString().slice(0, 10)}" required>
                 </div>
                 <div>
-                    <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Scheduled Time</label>
+                    <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Start Time</label>
                     <input type="time" id="live-time-input" class="smart-input w-full" value="19:30" required>
+                </div>
+                <div>
+                    <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">End Time (Auto Delete)</label>
+                    <input type="time" id="live-end-time-input" class="smart-input w-full" value="22:00" required>
                 </div>
             </div>
 
@@ -5682,6 +5777,8 @@ window.openAddLiveClassModal = () => {
     const title = sanitizeInput(document.getElementById('live-title-input').value.trim());
     const scheduledDate = sanitizeInput(document.getElementById('live-date-input').value);
     const scheduledTime = sanitizeInput(document.getElementById('live-time-input').value.trim());
+    const scheduledEndTime = sanitizeInput(document.getElementById('live-end-time-input').value.trim());
+    const endTimestamp = getClassEndTimestamp(scheduledDate, scheduledTime, scheduledEndTime);
     const link = sanitizeUrl(document.getElementById('live-link-input').value.trim());
     const description = sanitizeInput(document.getElementById('live-desc-input').value.trim());
     const status = sanitizeInput(document.querySelector('input[name="live-initial-status"]:checked').value);
@@ -5698,6 +5795,8 @@ window.openAddLiveClassModal = () => {
         batch,
         scheduledDate,
         scheduledTime,
+        scheduledEndTime,
+        endTimestamp,
         link,
         description,
         status,
@@ -5796,14 +5895,18 @@ window.openEditLiveClassModal = async (classId) => {
                 <input id="edit-live-title-input" value="${(c.title || '').replace(/"/g, '&quot;')}" placeholder="e.g. Wave Optics Theory Revision" class="smart-input w-full" required>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                     <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Scheduled Date</label>
-                    <input type="date" id="edit-live-date-input" class="smart-input w-full" value="${c.scheduledDate || new Date().toISOString().slice(0, 10)}">
+                    <input type="date" id="edit-live-date-input" class="smart-input w-full" value="${c.scheduledDate || new Date().toISOString().slice(0, 10)}" required>
                 </div>
                 <div>
-                    <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Scheduled Time</label>
+                    <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">Start Time</label>
                     <input type="time" id="edit-live-time-input" class="smart-input w-full" value="${timeTo24h(c.scheduledTime)}" required>
+                </div>
+                <div>
+                    <label class="text-xs uppercase font-bold text-[var(--text-secondary)] mb-1 block">End Time (Auto Delete)</label>
+                    <input type="time" id="edit-live-end-time-input" class="smart-input w-full" value="${timeTo24h(c.scheduledEndTime || '22:00')}" required>
                 </div>
             </div>
 
@@ -5875,6 +5978,8 @@ window.openEditLiveClassModal = async (classId) => {
     const title = sanitizeInput(document.getElementById('edit-live-title-input').value.trim());
     const scheduledDate = sanitizeInput(document.getElementById('edit-live-date-input').value);
     const scheduledTime = sanitizeInput(document.getElementById('edit-live-time-input').value.trim());
+    const scheduledEndTime = sanitizeInput(document.getElementById('edit-live-end-time-input').value.trim());
+    const endTimestamp = getClassEndTimestamp(scheduledDate, scheduledTime, scheduledEndTime);
     const link = sanitizeUrl(document.getElementById('edit-live-link-input').value.trim());
     const description = sanitizeInput(document.getElementById('edit-live-desc-input').value.trim());
     const status = sanitizeInput(document.querySelector('input[name="edit-live-status"]:checked').value);
@@ -5890,6 +5995,8 @@ window.openEditLiveClassModal = async (classId) => {
       batch,
       scheduledDate,
       scheduledTime,
+      scheduledEndTime,
+      endTimestamp,
       link,
       description,
       status,
@@ -7509,11 +7616,18 @@ export async function renderCommunityChat(user, navigateTo) {
   }
 
   window.handleReplyToMessage = (msgId, senderName, textSnippet, messageType) => {
+    const safeId = String(msgId || '').trim();
+    const safeSender = decodeURIComponent(senderName || 'Student');
+    const safeSnippet = decodeURIComponent(textSnippet || 'Message');
+    const safeType = messageType || 'text';
+
     activeReplyTarget = {
-      messageId: msgId,
-      senderName: decodeURIComponent(senderName || 'Student'),
-      textSnippet: decodeURIComponent(textSnippet || 'Message'),
-      messageType: messageType || 'text'
+      id: safeId,
+      messageId: safeId,
+      senderName: safeSender,
+      text: safeSnippet,
+      textSnippet: safeSnippet,
+      messageType: safeType
     };
     renderChatReplyBanner();
     if (messageInput) {
@@ -7803,14 +7917,17 @@ export async function renderCommunityChat(user, navigateTo) {
 
       // Quoted Reply Card
       let quotedReplyHtml = '';
-      if (m.replyTo && m.replyTo.senderName) {
+      if (m.replyTo && (m.replyTo.senderName || m.replyTo.text || m.replyTo.textSnippet)) {
+        const replyTargetId = m.replyTo.messageId || m.replyTo.id || '';
+        const sender = m.replyTo.senderName || 'Student';
+        const snippet = m.replyTo.textSnippet || m.replyTo.text || 'Replied message';
         quotedReplyHtml = `
-          <div class="chat-reply-quote" onclick="window.jumpToChatMessage('${m.replyTo.messageId}')" title="Click to view quoted message">
+          <div class="chat-reply-quote" onclick="window.jumpToChatMessage('${replyTargetId}')" title="Click to view quoted message">
               <p class="font-bold text-indigo-300 text-[10px] truncate flex items-center gap-1">
                   <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>
-                  <span>@${m.replyTo.senderName}</span>
+                  <span>@${sender}</span>
               </p>
-              <p class="text-[11px] opacity-85 truncate text-[var(--text-primary)] mt-0.5">${m.replyTo.textSnippet || 'Replied message'}</p>
+              <p class="text-[11px] opacity-85 truncate text-[var(--text-primary)] mt-0.5">${snippet}</p>
           </div>
         `;
       }
