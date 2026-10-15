@@ -3128,30 +3128,69 @@ export async function renderTimetable(user) {
     }
   };
 
-  // PDF Logic
-  document.getElementById('tt-pdf').onclick = () => {
-    if (typeof jspdf === 'undefined' || !jspdf.jsPDF) {
-        alert("PDF generator library is still loading. Please try again in a moment.");
+  // Dynamic loader for heavy libraries (e.g., jsPDF 450KB) so initial page load stays feather-light
+  async function ensureJsPdfLoaded() {
+    if (window.jspdf && window.jspdf.jsPDF) return window.jspdf;
+    const loadScript = (src) => new Promise((resolve, reject) => {
+      const existing = document.querySelector(`script[src="${src}"]`);
+      if (existing) {
+        if (existing.getAttribute('data-loaded') === 'true' || window.jspdf) return resolve();
+        existing.addEventListener('load', () => resolve());
+        existing.addEventListener('error', reject);
         return;
-    }
-    const pdf = new jspdf.jsPDF('l', 'pt', 'a4');
-    const body = hours.map(h => [
-        formatHour(h),
-        ...days.map((d, i) => {
+      }
+      const s = document.createElement('script');
+      s.src = src;
+      s.async = true;
+      s.onload = () => { s.setAttribute('data-loaded', 'true'); resolve(); };
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js');
+    return window.jspdf;
+  }
+
+  // PDF Logic (Loaded on-demand to save 450KB initial download)
+  const ttPdfBtn = document.getElementById('tt-pdf');
+  if (ttPdfBtn) {
+    ttPdfBtn.onclick = async function() {
+      const origText = this.innerHTML;
+      this.disabled = true;
+      this.innerHTML = `<span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block mr-1"></span> Preparing PDF...`;
+
+      try {
+        await ensureJsPdfLoaded();
+        if (typeof jspdf === 'undefined' || !jspdf.jsPDF) {
+          alert("Could not load PDF generator library. Please check your internet connection.");
+          return;
+        }
+        const pdf = new jspdf.jsPDF('l', 'pt', 'a4');
+        const body = hours.map(h => [
+          formatHour(h),
+          ...days.map((d, i) => {
             const el = document.getElementById(`tt_${i}_${h}`);
             return el ? el.value : '';
-        })
-    ]);
-    pdf.autoTable({
-        head: [['Time', ...days]],
-        body,
-        theme: 'grid',
-        styles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 7, cellPadding: 3 },
-        headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold', halign: 'center' },
-        columnStyles: { 0: { halign: 'center', fontStyle: 'bold', fillColor: [30, 41, 59] } }
-    });
-    pdf.save('TimeTable_24Hours.pdf');
-  };
+          })
+        ]);
+        pdf.autoTable({
+          head: [['Time', ...days]],
+          body,
+          theme: 'grid',
+          styles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 7, cellPadding: 3 },
+          headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold', halign: 'center' },
+          columnStyles: { 0: { halign: 'center', fontStyle: 'bold', fillColor: [30, 41, 59] } }
+        });
+        pdf.save('TimeTable_24Hours.pdf');
+      } catch (err) {
+        alert("Error generating PDF: " + err.message);
+      } finally {
+        this.disabled = false;
+        this.innerHTML = origText;
+      }
+    };
+  }
 }
 
 // --- Lecture Hall Year / Batch Management ---

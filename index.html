@@ -49,6 +49,9 @@
     <!-- DNS Preconnects for ultra-fast network loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://firestore.googleapis.com">
+    <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="preconnect" href="https://cdn.tailwindcss.com">
     <link rel="manifest" href="/manifest.json">
@@ -60,11 +63,9 @@
     <!-- Inline Critical CSS vs Deferred Styles if applicable, but style.css is local -->
     <link rel="stylesheet" href="style.css">
 
-    <!-- External Libraries (Deferred so HTML parsing isn't blocked) -->
+    <!-- External Libraries (Deferred so HTML parsing isn't blocked, jsPDF loaded dynamically on demand) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js" defer></script>
 </head>
 
