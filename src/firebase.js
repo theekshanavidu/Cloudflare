@@ -4,7 +4,10 @@ import {
   GoogleAuthProvider
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
-  getFirestore
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   getStorage
@@ -21,7 +24,20 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Enable robust multi-tab offline persistence with fallback so low/offline connections load instantly
+let firestoreDb;
+try {
+  firestoreDb = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    })
+  });
+} catch (e) {
+  console.warn("Persistent cache fallback:", e);
+  firestoreDb = getFirestore(app);
+}
+export const db = firestoreDb;
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 

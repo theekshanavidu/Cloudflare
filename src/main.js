@@ -68,13 +68,25 @@ async function router() {
         }
     }
 
-    // Add smooth transition effect
+    // Add smooth transition effect without blank screen
     const container = document.getElementById('app-container');
-    container.style.opacity = '0';
+    if (container && (!container.innerHTML.trim() || container.innerHTML.includes('route-loading-indicator'))) {
+        container.innerHTML = `
+            <div id="route-loading-indicator" class="flex flex-col items-center justify-center min-h-[45vh] gap-3">
+                <div class="w-9 h-9 border-3 border-indigo-500/30 border-t-indigo-400 rounded-full animate-spin"></div>
+                <p class="text-xs text-[var(--text-secondary)] font-medium tracking-wide">Loading content...</p>
+            </div>
+        `;
+        container.style.opacity = '1';
+    }
 
     setTimeout(async () => {
-        // Update Header
-        await UI.renderHeader(currentUser, navigateTo, signOut);
+        // Update Header safely
+        try {
+            await UI.renderHeader(currentUser, navigateTo, signOut);
+        } catch (e) {
+            console.warn("renderHeader fallback:", e);
+        }
 
         // Public Routes
         if (path === '/' || path === '/welcome') {
@@ -116,21 +128,17 @@ async function router() {
             return;
         }
 
+        // Profile check using fast local cache so navigation never stalls on slow network
         if (path !== '/profile') {
             if (currentUser.uid !== ADMIN_UID) {
                 try {
-                    const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-                    if (userDoc.exists()) {
-                        const d = userDoc.data();
+                    const d = await UI.getUserProfile(currentUser.uid);
+                    if (d) {
                         if (!d.phone || !d.birthday || !d.firstName || !d.lastName || !d.examYear || !d.email) {
                             alert("Please complete your profile details to continue.\nකරුණාකර ඉදිරියට යාමට පෙර ඔබගේ ගිණුමේ විස්තර සම්පූර්ණ කරන්න.");
                             navigateTo('/profile');
                             return;
                         }
-                    } else {
-                        alert("Please complete your profile details to continue.\nකරුණාකර ඉදිරියට යාමට පෙර ඔබගේ ගිණුමේ විස්තර සම්පූර්ණ කරන්න.");
-                        navigateTo('/profile');
-                        return;
                     }
                 } catch(e) {
                     console.error("Profile check error:", e);
@@ -247,14 +255,11 @@ function removeCookie(name) {
     document.cookie = name + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax';
 }
 
-// --- Initialization ---
-window.addEventListener('popstate', router);
-window.addEventListener('load', () => {
+// --- Fast App Initialization (Runs immediately without waiting for heavy external scripts) ---
+function initApp() {
     initParticles();
     registerServiceWorker();
     UI.startLiveClassesListener();
-
-    let sessionUnsubscribe = null;
 
     onAuthStateChanged(auth, async (user) => {
         currentUser = user;
@@ -262,61 +267,15 @@ window.addEventListener('load', () => {
             currentUser.displayName = "Admin";
         }
 
-        // Track user activity and manage session
+        // Track user activity and notifications (Unlimited simultaneous devices allowed)
         if (currentUser) {
-            // Session Management
-            let localSessionId = localStorage.getItem('studyTrackerSessionId') || getCookie('studyTrackerSessionId');
-            const pendingSessionId = localStorage.getItem('pendingSessionId') || getCookie('pendingSessionId');
-
-            if (pendingSessionId) {
-                localSessionId = pendingSessionId;
-                localStorage.setItem('studyTrackerSessionId', localSessionId);
-                setCookie('studyTrackerSessionId', localSessionId);
-                localStorage.removeItem('pendingSessionId');
-                removeCookie('pendingSessionId');
-                // Update Firestore immediately
-                updateDoc(doc(db, 'users', currentUser.uid), { sessionId: localSessionId }).catch(e=>console.log('Session update err:', e));
-            }
-
-            if (!localSessionId) {
-                localSessionId = Date.now().toString() + Math.random().toString();
-                localStorage.setItem('studyTrackerSessionId', localSessionId);
-                setCookie('studyTrackerSessionId', localSessionId);
-            }
-
-            if (sessionUnsubscribe) sessionUnsubscribe();
-            sessionUnsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    if (data.sessionId && data.sessionId !== localSessionId) {
-                        alert("You have been logged out because your account was accessed from another device.\nඔබගේ ගිණුමට වෙනත් උපාංගයකින් පිවිස ඇති බැවින් ඔබව ඉවත් කරන ලදී.");
-                        signOut(auth);
-                    } else if (!data.sessionId) {
-                        updateDoc(doc(db, 'users', currentUser.uid), { sessionId: localSessionId }).catch(e=>console.log(e));
-                    }
-                }
-            });
-
             UI.trackUserActivity(currentUser.uid);
             UI.listenForNotifications(currentUser);
             UI.listenForUnreadChat(currentUser);
             UI.checkNewYearPopup(currentUser);
-            /* ========================================================================= */
-            /* ===== EXAM TIMETABLE POPUP CODE - DISABLED ============================== */
-            /* ========================================================================= */
-            // UI.checkExamTimetablePopup(currentUser);
-            /* ========================================================================= */
             if (window.checkAndDisplayGlobalNotification) window.checkAndDisplayGlobalNotification(currentUser);
-            await requestNotificationPermission();
+            requestNotificationPermission().catch(() => {});
         } else {
-            if (sessionUnsubscribe) {
-                sessionUnsubscribe();
-                sessionUnsubscribe = null;
-            }
-            localStorage.removeItem('studyTrackerSessionId');
-            removeCookie('studyTrackerSessionId');
-            localStorage.removeItem('pendingSessionId');
-            removeCookie('pendingSessionId');
             UI.listenForNotifications(null);
             UI.listenForUnreadChat(null);
         }
@@ -335,7 +294,14 @@ window.addEventListener('load', () => {
             router();
         }
     });
-});
+}
+
+window.addEventListener('popstate', router);
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
 
 // Expose navigateTo to window if needed for inline onclicks
 window.navigateTo = navigateTo;

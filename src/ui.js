@@ -70,12 +70,37 @@ const formatSLTime = (timestamp) => {
 };
 
 let userProfileCache = {}; // Global cache for user profile data (fixes Auth photoURL length limit)
-async function getUserProfile(uid) {
+export async function getUserProfile(uid) {
+  if (!uid) return null;
   if (userProfileCache[uid]) return userProfileCache[uid];
-  const snap = await getDoc(doc(db, 'users', uid));
-  if (snap.exists()) {
-    userProfileCache[uid] = snap.data();
-    return userProfileCache[uid];
+
+  // Check persistent localStorage for instant 0ms offline/low-connection loading
+  try {
+    const saved = localStorage.getItem('study_user_profile_' + uid);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      userProfileCache[uid] = parsed;
+      // Refresh in background without blocking UI
+      getDoc(doc(db, 'users', uid)).then((snap) => {
+        if (snap.exists()) {
+          const fresh = snap.data();
+          userProfileCache[uid] = fresh;
+          try { localStorage.setItem('study_user_profile_' + uid, JSON.stringify(fresh)); } catch (e) {}
+        }
+      }).catch((e) => console.warn("Background profile fetch:", e));
+      return parsed;
+    }
+  } catch (e) {}
+
+  try {
+    const snap = await getDoc(doc(db, 'users', uid));
+    if (snap.exists()) {
+      userProfileCache[uid] = snap.data();
+      try { localStorage.setItem('study_user_profile_' + uid, JSON.stringify(snap.data())); } catch (e) {}
+      return userProfileCache[uid];
+    }
+  } catch (err) {
+    console.warn("getUserProfile error:", err);
   }
   return null;
 }
@@ -903,9 +928,6 @@ export function renderLogin(navigate) {
         alert("Please enter both email and password.");
         return;
       }
-      const pendingId = Date.now().toString() + Math.random().toString();
-      localStorage.setItem('pendingSessionId', pendingId);
-      setCookie('pendingSessionId', pendingId);
       await signInWithEmailAndPassword(auth, email, password);
       navigate('/home');
     } catch (err) { alert(err.message); }
@@ -967,9 +989,6 @@ export function renderLogin(navigate) {
 
   document.getElementById('google-login').onclick = async () => {
     try {
-      const pendingId = Date.now().toString() + Math.random().toString();
-      localStorage.setItem('pendingSessionId', pendingId);
-      setCookie('pendingSessionId', pendingId);
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const u = result.user;
@@ -1261,9 +1280,6 @@ export function renderRegister(navigate) {
       }
 
       const displayName = [cleanFirst, cleanLast].filter(Boolean).join(' ');
-      const pendingId = Date.now().toString() + Math.random().toString();
-      localStorage.setItem('pendingSessionId', pendingId);
-      setCookie('pendingSessionId', pendingId);
       const cred = await createUserWithEmailAndPassword(auth, cleanEmail, rawPassword);
       const profileUpdate = { displayName };
       if (photoURL) profileUpdate.photoURL = photoURL;
@@ -1291,9 +1307,6 @@ export function renderRegister(navigate) {
   // Google Sign Up
   document.getElementById('google-signup').onclick = async () => {
     try {
-      const pendingId = Date.now().toString() + Math.random().toString();
-      localStorage.setItem('pendingSessionId', pendingId);
-      setCookie('pendingSessionId', pendingId);
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const u = result.user;
@@ -1706,14 +1719,21 @@ export async function renderHome(user) {
     clearInterval(window.authCountdownInterval);
     window.authCountdownInterval = null;
   }
+
+  // Load daily goal from instant cache so rendering is never blocked on slow network
   let dailyGoal = 4;
   try {
-    const userDoc = await getDoc(doc(db, 'users', user.uid));
-    if (userDoc.exists()) {
-        const d = userDoc.data();
-        if (d.dailyGoal) dailyGoal = d.dailyGoal;
+    const cachedProf = userProfileCache[user.uid] || JSON.parse(localStorage.getItem('study_user_profile_' + user.uid) || '{}');
+    if (cachedProf && cachedProf.dailyGoal) dailyGoal = cachedProf.dailyGoal;
+  } catch (e) {}
+
+  // Fetch fresh profile in background without blocking initial HTML render
+  getUserProfile(user.uid).then(p => {
+    if (p && p.dailyGoal && p.dailyGoal !== dailyGoal) {
+      dailyGoal = p.dailyGoal;
+      updateCharts();
     }
-  } catch (e) { console.error(e); }
+  }).catch(() => {});
 
   appContainer.innerHTML = `
         <div class="max-w-7xl mx-auto pt-8 pb-12">
@@ -1845,14 +1865,33 @@ export async function renderHome(user) {
   let currentDuration = 7;
   const durationSelect = document.getElementById('chart-duration');
 
-  const updateCharts = () => renderCharts(user.uid, dailyGoal, currentDuration);
-
-  durationSelect.onchange = (e) => {
-    currentDuration = parseInt(e.target.value);
-    updateCharts();
+  const updateCharts = () => {
+    try {
+      renderCharts(user.uid, dailyGoal, currentDuration);
+    } catch (err) {
+      console.warn("Chart render skipped:", err);
+    }
   };
 
-  updateCharts();
+  if (durationSelect) {
+    durationSelect.onchange = (e) => {
+      currentDuration = parseInt(e.target.value);
+      updateCharts();
+    };
+  }
+
+  // Safe chart render with delay/retry if Chart.js CDN is still loading on slow network
+  if (typeof Chart !== 'undefined') {
+    updateCharts();
+  } else {
+    const checkChartInterval = setInterval(() => {
+      if (typeof Chart !== 'undefined') {
+        clearInterval(checkChartInterval);
+        updateCharts();
+      }
+    }, 400);
+    setTimeout(() => clearInterval(checkChartInterval), 10000);
+  }
 
   // Initialize Exam Countdown Timer (August 3, 2027)
   if (window.examCountdownInterval) {
@@ -1944,109 +1983,118 @@ let weeklyChartInstance = null;
 let monthlyChartInstance = null;
 
 async function renderCharts(uid, dailyGoal, days) {
-  const q = query(collection(db, 'studyLogs'), where('userId', '==', uid));
-  const snap = await getDocs(q);
-  const data = snap.docs.map(d => d.data());
+  try {
+    const q = query(collection(db, 'studyLogs'), where('userId', '==', uid));
+    const snap = await getDocs(q);
+    const data = snap.docs.map(d => d.data());
 
-  const today = new Date();
+    const today = new Date();
 
-  // --- Daily Goal Ring Logic ---
-  const todayStr = getLocalDateString(today);
-  const todayLog = data.find(x => x.date === todayStr);
-  const todayHours = todayLog ? todayLog.hours : 0;
+    // --- Daily Goal Ring Logic ---
+    const todayStr = getLocalDateString(today);
+    const todayLog = data.find(x => x.date === todayStr);
+    const todayHours = todayLog ? todayLog.hours : 0;
 
-  const ring = document.getElementById('goal-ring');
-  const todayText = document.getElementById('today-hours');
-  if (ring && todayText) {
-    todayText.textContent = todayHours;
-    const pct = Math.min(todayHours / dailyGoal, 1);
-    const dash = 439.8;
-    const offset = dash - (dash * pct);
-    ring.style.strokeDashoffset = offset;
-    ring.style.stroke = pct >= 1 ? 'var(--success)' : 'var(--primary)';
-    document.getElementById('goal-msg').textContent = pct >= 1 ? "Goal Reached! 🎉" : `${(dailyGoal - todayHours).toFixed(1)}h remaining`;
-  }
+    const ring = document.getElementById('goal-ring');
+    const todayText = document.getElementById('today-hours');
+    if (ring && todayText) {
+      todayText.textContent = todayHours;
+      const pct = Math.min(todayHours / dailyGoal, 1);
+      const dash = 439.8;
+      const offset = dash - (dash * pct);
+      ring.style.strokeDashoffset = offset;
+      ring.style.stroke = pct >= 1 ? 'var(--success)' : 'var(--primary)';
+      const goalMsg = document.getElementById('goal-msg');
+      if (goalMsg) goalMsg.textContent = pct >= 1 ? "Goal Reached! 🎉" : `${(dailyGoal - todayHours).toFixed(1)}h remaining`;
+    }
 
-  // --- Weekly Line Chart Data ---
-  const wLabels = [];
-  const wValues = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(today.getDate() - i);
-    const ds = getLocalDateString(d);
-    wLabels.push(d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }));
-    const entry = data.find(x => x.date === ds);
-    wValues.push(entry ? entry.hours : 0);
-  }
+    // --- Weekly Line Chart Data ---
+    const wLabels = [];
+    const wValues = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(today.getDate() - i);
+      const ds = getLocalDateString(d);
+      wLabels.push(d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }));
+      const entry = data.find(x => x.date === ds);
+      wValues.push(entry ? entry.hours : 0);
+    }
 
-  // --- Monthly Bar Chart Data ---
-  const mData = {};
-  data.forEach(d => {
-    const k = d.date.slice(0, 7); // YYYY-MM
-    mData[k] = (mData[k] || 0) + d.hours;
-  });
-  const mLabels = Object.keys(mData).sort();
-  const mValues = mLabels.map(k => mData[k]);
-
-
-  // --- Render Weekly ---
-  const ctxW = document.getElementById('weekly-chart');
-  if (ctxW) {
-    if (weeklyChartInstance) weeklyChartInstance.destroy();
-    weeklyChartInstance = new Chart(ctxW.getContext('2d'), {
-      type: 'line',
-      data: {
-        labels: wLabels,
-        datasets: [{
-          label: 'Study Hours',
-          data: wValues,
-          borderColor: '#4f46e5',
-          backgroundColor: 'rgba(79, 70, 229, 0.1)',
-          borderWidth: 3,
-          tension: 0.4,
-          fill: true,
-          pointBackgroundColor: '#fff',
-          pointBorderColor: '#4f46e5',
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { beginAtZero: true, grid: { color: 'rgba(125,125,125,0.1)' } },
-          x: { grid: { display: false } }
-        }
-      }
+    // --- Monthly Bar Chart Data ---
+    const mData = {};
+    data.forEach(d => {
+      const k = d.date.slice(0, 7); // YYYY-MM
+      mData[k] = (mData[k] || 0) + d.hours;
     });
-  }
+    const mLabels = Object.keys(mData).sort();
+    const mValues = mLabels.map(k => mData[k]);
 
-  // --- Render Monthly ---
-  const ctxM = document.getElementById('monthly-chart');
-  if (ctxM) {
-    if (monthlyChartInstance) monthlyChartInstance.destroy();
-    monthlyChartInstance = new Chart(ctxM.getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: mLabels,
-        datasets: [{
-          label: 'Total Hours',
-          data: mValues,
-          backgroundColor: '#06b6d4',
-          borderRadius: 6,
-          barPercentage: 0.6
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { beginAtZero: true, grid: { color: 'rgba(125,125,125,0.1)' } },
-          x: { grid: { display: false } }
+    // Check if Chart.js library is loaded
+    if (typeof Chart === 'undefined') {
+      return;
+    }
+
+    // --- Render Weekly ---
+    const ctxW = document.getElementById('weekly-chart');
+    if (ctxW) {
+      if (weeklyChartInstance) weeklyChartInstance.destroy();
+      weeklyChartInstance = new Chart(ctxW.getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: wLabels,
+          datasets: [{
+            label: 'Study Hours',
+            data: wValues,
+            borderColor: '#4f46e5',
+            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+            borderWidth: 3,
+            tension: 0.4,
+            fill: true,
+            pointBackgroundColor: '#fff',
+            pointBorderColor: '#4f46e5',
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: 'rgba(125,125,125,0.1)' } },
+            x: { grid: { display: false } }
+          }
         }
-      }
-    });
+      });
+    }
+
+    // --- Render Monthly ---
+    const ctxM = document.getElementById('monthly-chart');
+    if (ctxM) {
+      if (monthlyChartInstance) monthlyChartInstance.destroy();
+      monthlyChartInstance = new Chart(ctxM.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: mLabels,
+          datasets: [{
+            label: 'Total Hours',
+            data: mValues,
+            backgroundColor: '#06b6d4',
+            borderRadius: 6,
+            barPercentage: 0.6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: 'rgba(125,125,125,0.1)' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+    }
+  } catch (err) {
+    console.warn("renderCharts execution error:", err);
   }
 }
 

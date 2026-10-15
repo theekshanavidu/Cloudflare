@@ -1,9 +1,11 @@
 // Service Worker for StudyTracker Pro
-const CACHE_NAME = 'studytracker-v37';
+const CACHE_NAME = 'studytracker-v38';
 const ASSETS_TO_CACHE = [
     '/',
+    '/style.css',
     '/icon.png',
-    '/new_year.png'
+    '/new_year.png',
+    '/manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
@@ -37,6 +39,16 @@ self.addEventListener('fetch', (event) => {
     // Skip Chrome extension requests or non-HTTP protocols
     if (!event.request.url.startsWith('http')) return;
 
+    const url = event.request.url;
+    // Never intercept Firebase / Firestore / Google APIs / R2 Storage in SW
+    if (url.includes('firestore.googleapis.com') ||
+        url.includes('identitytoolkit.googleapis.com') ||
+        url.includes('securetoken.googleapis.com') ||
+        url.includes('apis.google.com') ||
+        url.includes('r2.cloudflarestorage.com')) {
+        return;
+    }
+
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
             // Stale-while-revalidate strategy: 
@@ -53,7 +65,8 @@ self.addEventListener('fetch', (event) => {
                     return networkResponse;
                 })
                 .catch(() => {
-                    // Ignore network failure when running in offline mode
+                    // Return cached response if available when network fails
+                    return cachedResponse;
                 });
 
             // 2. Immediately return the cached response (Instant Load) 
