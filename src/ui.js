@@ -5025,39 +5025,50 @@ export async function renderTuteSubject(subjectId, navigateTo, currentUser) {
                 </div>
             ` : lessons.map((lesson, idx) => {
                 const lessonTutes = docsByLesson[lesson.id] || [];
+                const isExpanded = window._expandedTuteLessonIds ? window._expandedTuteLessonIds.has(lesson.id) : false;
                 return `
-                    <div class="smart-card p-5 sm:p-6 border border-[var(--glass-border)] hover:border-indigo-500/30 transition-all shadow-md">
-                        <!-- Lesson Header -->
-                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[var(--glass-border)]">
-                            <div>
-                                <div class="flex items-center gap-2 mb-1 flex-wrap">
-                                    <span class="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300 font-black text-xs inline-flex items-center justify-center border border-indigo-500/30">
-                                        ${lesson.order !== undefined && lesson.order !== null && lesson.order !== '' ? lesson.order : (idx + 1)}
-                                    </span>
-                                    <h2 class="text-base sm:text-lg font-extrabold text-[var(--text-primary)]">${escapeHTML(lesson.title || 'Untitled Lesson')}</h2>
-                                    <span class="text-[11px] px-2 py-0.5 rounded-full bg-[var(--bg-root)] border border-[var(--glass-border)] text-[var(--text-secondary)] font-medium">
-                                        ${lessonTutes.length} ${lessonTutes.length === 1 ? 'PDF' : 'PDFs'}
-                                    </span>
+                    <div class="smart-card p-4 sm:p-5 border border-[var(--glass-border)] hover:border-indigo-500/30 transition-all shadow-md">
+                        <!-- Lesson Header (Clickable Accordion Trigger) -->
+                        <div class="cursor-pointer select-none flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isExpanded ? 'pb-3.5 border-b border-[var(--glass-border)]' : 'pb-1'}" id="lesson-header-${lesson.id}" onclick="window.toggleTuteLessonExpand('${lesson.id}')">
+                            <div class="flex items-center gap-3 flex-1 min-w-0">
+                                <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-indigo-500/20 text-indigo-300 font-black text-xs sm:text-sm inline-flex items-center justify-center border border-indigo-500/30 shrink-0">
+                                    ${lesson.order !== undefined && lesson.order !== null && lesson.order !== '' ? lesson.order : (idx + 1)}
+                                </span>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <h2 class="text-sm sm:text-base font-extrabold text-[var(--text-primary)] hover:text-indigo-300 transition-colors">${escapeHTML(lesson.title || 'Untitled Lesson')}</h2>
+                                        <span class="text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full bg-[var(--bg-root)] border border-[var(--glass-border)] text-[var(--text-secondary)] font-medium">
+                                            📄 ${lessonTutes.length} ${lessonTutes.length === 1 ? 'PDF' : 'PDFs'}
+                                        </span>
+                                    </div>
+                                    ${lesson.description ? `<p class="text-xs text-[var(--text-secondary)] mt-0.5 truncate">${escapeHTML(lesson.description)}</p>` : ''}
                                 </div>
-                                ${lesson.description ? `<p class="text-xs text-[var(--text-secondary)] mt-0.5 pl-8">${escapeHTML(lesson.description)}</p>` : ''}
                             </div>
 
-                            <!-- Admin Actions for Lesson -->
-                            ${isAdminOrMod ? `
-                                <div class="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                                    <button onclick="window.openUploadTutePdfModal('${lesson.id}', '${escapeHTML((lesson.title || 'Lesson').replace(/'/g, "\\'"))}', '${subjectId}')" class="px-3 py-1.5 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 text-white text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-sm cursor-pointer">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                            <!-- Actions & Expand Button -->
+                            <div class="flex items-center gap-2 self-end sm:self-auto shrink-0" onclick="event.stopPropagation()">
+                                ${isAdminOrMod ? `
+                                    <button type="button" onclick="window.openUploadTutePdfModal('${lesson.id}', '${escapeHTML((lesson.title || 'Lesson').replace(/'/g, "\\'"))}', '${subjectId}')" class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 text-white text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-sm cursor-pointer">
+                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
                                         <span>Upload PDF</span>
                                     </button>
-                                    <button onclick="window.deleteTuteLesson('${lesson.id}', '${subjectId}')" class="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all text-xs cursor-pointer" title="Delete Lesson">
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
+                                    <button type="button" onclick="window.deleteTuteLesson('${lesson.id}', '${subjectId}')" class="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all text-xs cursor-pointer" title="Delete Lesson">
+                                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
                                     </button>
-                                </div>
-                            ` : ''}
+                                ` : ''}
+
+                                <!-- Expand/Collapse Toggle Button -->
+                                <button type="button" onclick="window.toggleTuteLessonExpand('${lesson.id}')" class="px-2.5 py-1.5 rounded-xl bg-[var(--bg-root)] hover:bg-white/10 text-indigo-300 border border-[var(--glass-border)] text-xs font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer">
+                                    <span id="expand-txt-${lesson.id}">${isExpanded ? 'Hide' : 'Expand'}</span>
+                                    <svg id="expand-icon-${lesson.id}" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" class="transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
 
-                        <!-- Lesson PDFs List -->
-                        <div class="mt-4 space-y-3">
+                        <!-- Lesson PDFs List (Collapsible) -->
+                        <div id="lesson-tutes-${lesson.id}" class="mt-4 space-y-3 ${isExpanded ? '' : 'hidden'}">
                             ${lessonTutes.length === 0 ? `
                                 <div class="p-4 rounded-xl bg-[var(--bg-root)] border border-dashed border-[var(--glass-border)] text-center text-xs text-[var(--text-secondary)]">
                                     <span>No PDF tutorials uploaded for this lesson yet.</span>
@@ -5109,16 +5120,22 @@ export async function renderTuteSubject(subjectId, navigateTo, currentUser) {
                                                     <span class="hidden sm:inline">Download</span>
                                                 </button>
 
-                                                <!-- Admin/Moderator Forward & Delete Buttons -->
+                                                <!-- Admin/Moderator Forward, Edit & Delete Buttons -->
                                                 ${isAdminOrMod ? `
+                                                    <!-- Edit Caption -->
+                                                    <button type="button" onclick="event.stopPropagation(); window.openEditTuteCaptionModal('${doc.id}', '${safeCaption.replace(/'/g, "\\'")}', '${subjectId}', '${lesson.id}')" class="px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 transition-all text-xs font-bold inline-flex items-center gap-1 cursor-pointer shadow-sm" title="Edit Caption / විස්තරය වෙනස් කරන්න">
+                                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                                        <span>Edit Caption</span>
+                                                    </button>
+
                                                     <!-- Forward to Chat -->
-                                                    <button type="button" onclick="window.openForwardTuteToChatModal('${doc.id}', '${safeFileName.replace(/'/g, "\\'")}', ${doc.fileSize || 0}, '${fileUrl}', '${safeCaption.replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-300 hover:text-indigo-100 transition-all text-xs font-bold inline-flex items-center gap-1 border border-indigo-500/30 cursor-pointer shadow-sm" title="Forward this PDF to Community Chat">
+                                                    <button type="button" onclick="event.stopPropagation(); window.openForwardTuteToChatModal('${doc.id}', '${safeFileName.replace(/'/g, "\\'")}', ${doc.fileSize || 0}, '${fileUrl}', '${safeCaption.replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-300 hover:text-indigo-100 transition-all text-xs font-bold inline-flex items-center gap-1 border border-indigo-500/30 cursor-pointer shadow-sm" title="Forward this PDF to Community Chat">
                                                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                                                         <span>Forward to Chat</span>
                                                     </button>
 
                                                     <!-- Delete PDF -->
-                                                    <button type="button" onclick="window.deleteTuteDocument('${doc.id}', '${subjectId}')" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all text-xs cursor-pointer" title="Delete PDF document">
+                                                    <button type="button" onclick="event.stopPropagation(); window.deleteTuteDocument('${doc.id}', '${subjectId}', '${lesson.id}')" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all text-xs cursor-pointer" title="Delete PDF document">
                                                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6"/></svg>
                                                     </button>
                                                 ` : ''}
@@ -5127,11 +5144,21 @@ export async function renderTuteSubject(subjectId, navigateTo, currentUser) {
 
                                         <!-- Caption Display -->
                                         ${hasCaption ? `
-                                            <div class="px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--glass-border)] text-xs text-[var(--text-secondary)] leading-relaxed flex items-start gap-2">
-                                                <span class="text-indigo-400 font-bold shrink-0">💬 Caption:</span>
-                                                <span class="text-[var(--text-primary)] font-medium whitespace-pre-wrap break-words">${safeCaption}</span>
+                                            <div class="px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--glass-border)] text-xs text-[var(--text-secondary)] leading-relaxed flex items-start justify-between gap-2">
+                                                <div class="flex items-start gap-2 flex-1 min-w-0">
+                                                    <span class="text-indigo-400 font-bold shrink-0">💬 Caption:</span>
+                                                    <span class="text-[var(--text-primary)] font-medium whitespace-pre-wrap break-words">${safeCaption}</span>
+                                                </div>
+                                                ${isAdminOrMod ? `
+                                                    <button type="button" onclick="event.stopPropagation(); window.openEditTuteCaptionModal('${doc.id}', '${safeCaption.replace(/'/g, "\\'")}', '${subjectId}', '${lesson.id}')" class="text-amber-400 hover:text-amber-300 text-[11px] font-bold shrink-0 hover:underline cursor-pointer ml-1">Edit</button>
+                                                ` : ''}
                                             </div>
-                                        ` : ''}
+                                        ` : (isAdminOrMod ? `
+                                            <div class="px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)]/50 border border-dashed border-[var(--glass-border)] text-xs text-[var(--text-secondary)] flex items-center justify-between">
+                                                <span class="text-[11px] opacity-70">No caption provided.</span>
+                                                <button type="button" onclick="event.stopPropagation(); window.openEditTuteCaptionModal('${doc.id}', '', '${subjectId}', '${lesson.id}')" class="text-amber-400 hover:underline font-bold text-[11px] cursor-pointer">+ Add Caption</button>
+                                            </div>
+                                        ` : '')}
                                     </div>
                                 `;
                             }).join('')}
@@ -5351,6 +5378,10 @@ export async function renderTuteSubject(subjectId, navigateTo, currentUser) {
 
         modal.remove();
         showTuteToast("Tutorial PDF uploaded successfully! 📑");
+        if (lessonId) {
+          window._expandedTuteLessonIds = window._expandedTuteLessonIds || new Set();
+          window._expandedTuteLessonIds.add(lessonId);
+        }
         await renderTuteSubject(subjId, navigateTo, currentUser);
       } catch (err) {
         console.error("Error uploading tute PDF:", err);
@@ -5358,6 +5389,71 @@ export async function renderTuteSubject(subjectId, navigateTo, currentUser) {
         btn.disabled = false;
         statusBox.classList.add('hidden');
         statusBox.classList.remove('flex');
+      }
+    };
+  };
+
+  // Edit Caption Modal (Admin/Moderator)
+  window.openEditTuteCaptionModal = (docId, currentCaption, subjId, lessonId) => {
+    const existing = document.getElementById('edit-caption-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'edit-caption-modal';
+    modal.className = 'fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in';
+    modal.innerHTML = `
+      <div class="smart-card w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--glass-border)] shadow-2xl p-6 relative animate-scale-in">
+          <div class="flex items-center justify-between mb-4 pb-3 border-b border-[var(--glass-border)]">
+              <h3 class="text-base sm:text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+                  <span class="text-amber-400">✏️</span>
+                  <span>Edit Tutorial Caption</span>
+              </h3>
+              <button onclick="document.getElementById('edit-caption-modal').remove()" class="text-[var(--text-secondary)] hover:text-white text-xl cursor-pointer">&times;</button>
+          </div>
+
+          <form id="edit-caption-form" class="space-y-4">
+              <div>
+                  <label class="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Caption / විස්තරය</label>
+                  <textarea id="edit-tute-caption-input" rows="4" class="w-full px-3.5 py-2.5 rounded-xl bg-[var(--bg-root)] border border-[var(--glass-border)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-amber-400 placeholder:text-gray-500" placeholder="Enter updated caption or tutorial description...">${escapeHTML(currentCaption || '')}</textarea>
+                  <p class="text-[11px] text-[var(--text-secondary)] mt-1">This caption will be updated for this tutorial document.</p>
+              </div>
+
+              <div class="flex items-center justify-end gap-2 pt-2">
+                  <button type="button" onclick="document.getElementById('edit-caption-modal').remove()" class="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--glass-border)] cursor-pointer">Cancel</button>
+                  <button type="submit" id="save-caption-btn" class="px-5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-amber-500 hover:bg-amber-400 text-gray-950 flex items-center gap-1.5 cursor-pointer shadow-lg shadow-amber-500/20 transition-all">
+                      <span>Save Changes 💾</span>
+                  </button>
+              </div>
+          </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const form = modal.querySelector('#edit-caption-form');
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const newCaption = (document.getElementById('edit-tute-caption-input').value || '').trim();
+      const saveBtn = document.getElementById('save-caption-btn');
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `<span class="animate-spin">⏳</span> Saving...`;
+
+      try {
+        await updateDoc(doc(db, 'tuteDocuments', docId), {
+          caption: sanitizeInput(newCaption)
+        });
+        modal.remove();
+        showTuteToast("Caption updated successfully! ✨");
+        if (lessonId) {
+          window._expandedTuteLessonIds = window._expandedTuteLessonIds || new Set();
+          window._expandedTuteLessonIds.add(lessonId);
+        }
+        await renderTuteSubject(subjId, navigateTo, currentUser);
+      } catch (err) {
+        console.error("Error updating caption:", err);
+        alert("Failed to update caption: " + err.message);
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = `<span>Save Changes 💾</span>`;
       }
     };
   };
@@ -5470,7 +5566,7 @@ export async function renderTuteSubject(subjectId, navigateTo, currentUser) {
   };
 
   // Delete Document Handler
-  window.deleteTuteDocument = async (docId, subjId) => {
+  window.deleteTuteDocument = async (docId, subjId, lessonId) => {
     if (!confirm("Are you sure you want to delete this PDF tutorial?\nමෙම PDF නිබන්ධනය මකා දැමීමට ඔබට විශ්වාසද?")) {
       return;
     }
@@ -5478,10 +5574,80 @@ export async function renderTuteSubject(subjectId, navigateTo, currentUser) {
     try {
       await deleteDoc(doc(db, 'tuteDocuments', docId));
       showTuteToast("PDF deleted.");
+      if (lessonId) {
+        window._expandedTuteLessonIds = window._expandedTuteLessonIds || new Set();
+        window._expandedTuteLessonIds.add(lessonId);
+      }
       await renderTuteSubject(subjId, navigateTo, currentUser);
     } catch (err) {
       console.error("Error deleting tute document:", err);
       alert("Failed to delete PDF: " + err.message);
+    }
+  };
+
+  // Accordion Expand/Collapse Handlers
+  window._expandedTuteLessonIds = window._expandedTuteLessonIds || new Set();
+
+  window.toggleTuteLessonExpand = (lessonId) => {
+    const container = document.getElementById(`lesson-tutes-${lessonId}`);
+    const icon = document.getElementById(`expand-icon-${lessonId}`);
+    const txt = document.getElementById(`expand-txt-${lessonId}`);
+    const header = document.getElementById(`lesson-header-${lessonId}`);
+    if (!container) return;
+
+    const isHidden = container.classList.contains('hidden');
+    if (isHidden) {
+      container.classList.remove('hidden');
+      container.classList.add('animate-fade-in');
+      if (icon) icon.classList.add('rotate-180');
+      if (txt) txt.textContent = 'Hide';
+      if (header) header.classList.add('border-b', 'border-[var(--glass-border)]');
+      window._expandedTuteLessonIds.add(lessonId);
+    } else {
+      container.classList.add('hidden');
+      container.classList.remove('animate-fade-in');
+      if (icon) icon.classList.remove('rotate-180');
+      if (txt) txt.textContent = 'Expand';
+      if (header) header.classList.remove('border-b', 'border-[var(--glass-border)]');
+      window._expandedTuteLessonIds.delete(lessonId);
+    }
+  };
+
+  window.toggleAllTuteLessons = () => {
+    const allContainers = document.querySelectorAll('[id^="lesson-tutes-"]');
+    const toggleBtnTxt = document.getElementById('toggle-all-tutes-txt');
+    if (!allContainers.length) return;
+
+    let hasHidden = false;
+    allContainers.forEach(c => {
+      if (c.classList.contains('hidden')) hasHidden = true;
+    });
+
+    allContainers.forEach(c => {
+      const lid = c.id.replace('lesson-tutes-', '');
+      const icon = document.getElementById(`expand-icon-${lid}`);
+      const txt = document.getElementById(`expand-txt-${lid}`);
+      const header = document.getElementById(`lesson-header-${lid}`);
+
+      if (hasHidden) {
+        c.classList.remove('hidden');
+        c.classList.add('animate-fade-in');
+        if (icon) icon.classList.add('rotate-180');
+        if (txt) txt.textContent = 'Hide';
+        if (header) header.classList.add('border-b', 'border-[var(--glass-border)]');
+        window._expandedTuteLessonIds.add(lid);
+      } else {
+        c.classList.add('hidden');
+        c.classList.remove('animate-fade-in');
+        if (icon) icon.classList.remove('rotate-180');
+        if (txt) txt.textContent = 'Expand';
+        if (header) header.classList.remove('border-b', 'border-[var(--glass-border)]');
+        window._expandedTuteLessonIds.delete(lid);
+      }
+    });
+
+    if (toggleBtnTxt) {
+      toggleBtnTxt.textContent = hasHidden ? 'Collapse All ▴' : 'Expand All ▾';
     }
   };
 }
