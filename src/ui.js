@@ -3399,9 +3399,35 @@ export async function checkCanEditLecture(user, subject = null) {
 export async function openLessonPage(subject, type, day, user) {
   const currentYear = getLectureYear();
 
-  if (currentYear === '2027' && (subject === 'com-maths-ruwan-full' || subject === 'biology' || subject === 'ravindu-ict')) {
-    if (window.navigateTo) window.navigateTo('/recordings');
-    return;
+  if (currentYear === '2027') {
+    if (subject === 'com-maths-ruwan-full' || subject === 'biology' || subject === 'ravindu-ict') {
+      if (window.navigateTo) window.navigateTo('/recordings');
+      return;
+    }
+    if (type === 'theory') {
+      if (window.navigateTo) window.navigateTo(`/recording/${subject}`);
+      return;
+    }
+    if (subject === 'physics' && (type === 'rapid' || type === 'final-revise')) {
+      if (window.navigateTo) window.navigateTo('/recording/physics');
+      return;
+    }
+    if (subject === 'chemistry' && (type === 'rapid' || type === 'midnight' || type === 'midnight-video')) {
+      if (window.navigateTo) window.navigateTo('/recording/chemistry');
+      return;
+    }
+    if (subject === 'vikum-maths' && type !== 'revision') {
+      if (window.navigateTo) window.navigateTo('/recording/vikum-maths');
+      return;
+    }
+    if (subject === 'maths' && (type === 'rapid' || type === 'final-revise')) {
+      if (window.navigateTo) window.navigateTo('/recording/maths');
+      return;
+    }
+    if (subject === 'com-maths-manoj' && type !== 'revision') {
+      if (window.navigateTo) window.navigateTo('/recording/com-maths-manoj');
+      return;
+    }
   }
 
   const lessonId = `${subject}_${type}_${day}`;
@@ -3417,6 +3443,10 @@ export async function openLessonPage(subject, type, day, user) {
     headingText = `${parseInt(day)} Month Content`;
   } else if (subject === 'vikum-maths' && type === 'rapid') {
     headingText = `${parseInt(day)} Month Content`;
+  } else if (type === 'super-practical') {
+    headingText = `Practical ${day} Content`;
+  } else if (type === 'reverse-class' || type === 'reverse') {
+    headingText = `Reverse Class Day ${day} Content`;
   }
 
   const subjectDisplayNames = {
@@ -3977,6 +4007,30 @@ export function renderType(subject, navigate) {
   }
 
   if (subject === 'vikum-maths') {
+    if (currentYear === '2027') {
+      appContainer.innerHTML = `
+        <div class="max-w-4xl mx-auto pt-8">
+            <div class="flex items-center justify-between mb-8 flex-wrap gap-3">
+                <button onclick="navigateTo('/recordings')" class="btn-ghost flex items-center gap-2 text-sm border border-[var(--glass-border)] hover:bg-[var(--glass-border)]">
+                    <span>←</span> Back to Subjects
+                </button>
+                ${renderLectureYearSwitcher(currentYear, 'normal')}
+            </div>
+            <div class="text-center mb-8">
+                <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-2 uppercase tracking-widest">Combine Maths</h2>
+                <p class="text-sm text-[var(--text-secondary)]">Vikum Harshana • <span class="font-bold text-indigo-400">2027 A/L</span></p>
+            </div>
+            <div class="grid grid-cols-1 max-w-xs mx-auto gap-4 mt-8">
+                <div onclick="navigateTo('/recording/vikum-maths/revision')" class="smart-card hover:border-indigo-500 cursor-pointer group p-6 md:p-10 text-center">
+                    <div class="text-4xl md:text-6xl mb-3 md:mb-4 group-hover:scale-110 transition-transform">🔄</div>
+                    <h3 class="text-lg md:text-2xl font-bold text-[var(--text-primary)]">Revision</h3>
+                </div>
+            </div>
+        </div>
+      `;
+      return;
+    }
+
     appContainer.innerHTML = `
         <div class="max-w-4xl mx-auto pt-8">
             <div class="flex items-center justify-between mb-8 flex-wrap gap-3">
@@ -4041,6 +4095,30 @@ export function renderType(subject, navigate) {
   }
 
   if (subject === 'com-maths-manoj' || subject === 'com-maths-ruwan-full') {
+    if (currentYear === '2027' && subject === 'com-maths-manoj') {
+      appContainer.innerHTML = `
+        <div class="max-w-4xl mx-auto pt-8">
+            <div class="flex items-center justify-between mb-8 flex-wrap gap-3">
+                <button onclick="navigateTo('/recordings')" class="btn-ghost flex items-center gap-2 text-sm border border-[var(--glass-border)] hover:bg-[var(--glass-border)]">
+                    <span>←</span> Back to Subjects
+                </button>
+                ${renderLectureYearSwitcher(currentYear, 'normal')}
+            </div>
+            <div class="text-center mb-8">
+                <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-2 uppercase tracking-widest">Combine Maths</h2>
+                <p class="text-sm text-[var(--text-secondary)]">Manoj Solangarachchi • <span class="font-bold text-indigo-400">2027 A/L</span></p>
+            </div>
+            <div class="grid grid-cols-1 max-w-xs mx-auto gap-4 mt-8">
+                <div onclick="navigateTo('/recording/com-maths-manoj/revision')" class="smart-card hover:border-indigo-500 cursor-pointer group p-6 md:p-10 text-center">
+                    <div class="text-4xl md:text-6xl mb-3 md:mb-4 group-hover:scale-110 transition-transform">🔄</div>
+                    <h3 class="text-lg md:text-2xl font-bold text-[var(--text-primary)]">Revision</h3>
+                </div>
+            </div>
+        </div>
+      `;
+      return;
+    }
+
     const title = subject === 'com-maths-ruwan-full' ? 'Com Maths Full Syllabus 2025' : (currentYear === '2027' ? 'Combine Maths' : 'Combine Maths 2025');
     const teacherName = subject === 'com-maths-ruwan-full' ? 'Ruwan Darshana' : 'Manoj Solangarachchi';
     appContainer.innerHTML = `
@@ -4064,20 +4142,40 @@ export function renderType(subject, navigate) {
     return;
   }
 
-  let items = [
-    { id: 'theory', icon: '📚', label: 'Theory' },
-    { id: 'revision', icon: '🔄', label: 'Revision' },
-    { id: 'paper', icon: '📝', label: 'Paper Class' },
-    { id: 'rapid', icon: '⚡', label: 'Rapid Revision' }
-  ];
-  if (subject === 'chemistry') {
-    items.push({ id: 'midnight', icon: '🌙', label: 'Midnight Session' });
-  }
-  if (subject === 'physics') {
-    items.push({ id: 'final-revise', icon: '🎯', label: 'Final Revise' });
+  let items = [];
+  if (currentYear === '2027') {
+    if (subject === 'physics') {
+      items = [
+        { id: 'revision', icon: '🔄', label: 'Revision' },
+        { id: 'paper', icon: '📝', label: 'Paper Class' },
+        { id: 'reverse-class', icon: '🔁', label: 'Reverse Class' },
+        { id: 'super-practical', icon: '🔬', label: 'Super Practical' }
+      ];
+    } else {
+      // chemistry, maths (Ruwan Darshana)
+      items = [
+        { id: 'revision', icon: '🔄', label: 'Revision' },
+        { id: 'paper', icon: '📝', label: 'Paper Class' }
+      ];
+    }
+  } else {
+    items = [
+      { id: 'theory', icon: '📚', label: 'Theory' },
+      { id: 'revision', icon: '🔄', label: 'Revision' },
+      { id: 'paper', icon: '📝', label: 'Paper Class' },
+      { id: 'rapid', icon: '⚡', label: 'Rapid Revision' }
+    ];
+    if (subject === 'chemistry') {
+      items.push({ id: 'midnight', icon: '🌙', label: 'Midnight Session' });
+    }
+    if (subject === 'physics') {
+      items.push({ id: 'final-revise', icon: '🎯', label: 'Final Revise' });
+    }
   }
 
-  const gridColsClass = items.length === 5 ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-5' : 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-4';
+  const gridColsClass = items.length === 2 
+    ? 'grid-cols-2 max-w-xl mx-auto' 
+    : (items.length === 5 ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-5' : 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-4');
 
   const subjectDisplayNames = {
     'maths': 'Combined Maths (Ruwan Darshana)',
@@ -4109,9 +4207,35 @@ export function renderType(subject, navigate) {
 export async function renderLessons(subject, type, navigate, user) {
   const currentYear = getLectureYear();
 
-  if (currentYear === '2027' && (subject === 'com-maths-ruwan-full' || subject === 'biology' || subject === 'ravindu-ict')) {
-    navigate('/recordings');
-    return;
+  if (currentYear === '2027') {
+    if (subject === 'com-maths-ruwan-full' || subject === 'biology' || subject === 'ravindu-ict') {
+      navigate('/recordings');
+      return;
+    }
+    if (type === 'theory') {
+      navigate(`/recording/${subject}`);
+      return;
+    }
+    if (subject === 'physics' && (type === 'rapid' || type === 'final-revise')) {
+      navigate('/recording/physics');
+      return;
+    }
+    if (subject === 'chemistry' && (type === 'rapid' || type === 'midnight' || type === 'midnight-video')) {
+      navigate('/recording/chemistry');
+      return;
+    }
+    if (subject === 'vikum-maths' && type !== 'revision') {
+      navigate('/recording/vikum-maths');
+      return;
+    }
+    if (subject === 'maths' && (type === 'rapid' || type === 'final-revise')) {
+      navigate('/recording/maths');
+      return;
+    }
+    if (subject === 'com-maths-manoj' && type !== 'revision') {
+      navigate('/recording/com-maths-manoj');
+      return;
+    }
   }
 
   if (subject === 'vikum-maths' && type === 'supportive') {
@@ -4185,10 +4309,19 @@ export async function renderLessons(subject, type, navigate, user) {
   }
 
   const isRapid = type === 'rapid';
-  const isUnitBased = (subject === 'com-maths-manoj' || subject === 'com-maths-ruwan-full');
+  const isUnitBased = (subject === 'com-maths-manoj' || subject === 'com-maths-ruwan-full') && (type === 'pure-maths' || type === 'applied-maths');
   let maxLessons = isRapid ? 1 : (isUnitBased ? 15 : 20);
   if (subject === 'vikum-maths' && type === 'revision') {
     maxLessons = 30;
+  }
+  if (subject === 'com-maths-manoj' && type === 'revision') {
+    maxLessons = 30;
+  }
+  if (type === 'super-practical') {
+    maxLessons = 35;
+  }
+  if (type === 'reverse-class' || type === 'reverse') {
+    maxLessons = 25;
   }
   if (type === 'final-revise') {
     maxLessons = 2;
@@ -4200,8 +4333,10 @@ export async function renderLessons(subject, type, navigate, user) {
   const isRapidSingle = isRapid && !(subject === 'vikum-maths' && type === 'rapid');
   const gridClass = isRapidSingle ? "grid grid-cols-1 max-w-lg mx-auto gap-4 mt-8" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4";
   
-  let displayType = type.replace('-', ' ');
+  let displayType = type.replace(/-/g, ' ');
   if (type === 'midnight-video') displayType = 'Midnight Session Video';
+  if (type === 'reverse' || type === 'reverse-class') displayType = 'Reverse Class';
+  if (type === 'super-practical') displayType = 'Super Practical';
 
   const subjectDisplayNames = {
     'ravindu-ict': 'ICT',
@@ -4267,6 +4402,10 @@ export async function renderLessons(subject, type, navigate, user) {
       defaultTitle = "Rapid Revision Content";
     } else if (isUnitBased) {
       defaultTitle = `Unit ${day}`;
+    } else if (type === 'super-practical') {
+      defaultTitle = `Practical ${day}`;
+    } else if (type === 'reverse-class' || type === 'reverse') {
+      defaultTitle = `Reverse Class Day ${day}`;
     } else {
       defaultTitle = `Day ${day} Lesson`;
     }
