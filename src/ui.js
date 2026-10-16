@@ -43,7 +43,8 @@ import {
   toggleChatSound,
   getChatSoundState,
   getUserRole,
-  setModeratorRole
+  setModeratorRole,
+  syncUserPastMessagesPhotoPrivacy
 } from "./chat.js";
 import { sanitizeInput, sanitizeObject, sanitizeUrl, escapeHTML } from "./security.js";
 
@@ -3814,6 +3815,10 @@ export async function renderProfile(user) {
         email: user.email,
         isPhotoPublic: isPhotoPublic
       };
+      try { localStorage.setItem('study_user_profile_' + user.uid, JSON.stringify(userProfileCache[user.uid])); } catch (e) {}
+
+      // Sync all past chat messages in Firestore so historical messages reflect new privacy
+      syncUserPastMessagesPhotoPrivacy(user.uid, isPhotoPublic, userProfileCache[user.uid]?.photoURL).catch(e => console.warn(e));
       
       alert("Profile Updated!");
       if (window.navigateTo) window.navigateTo('/home');
@@ -6734,6 +6739,15 @@ export async function renderCommunityChat(user, navigateTo) {
 
             await setDoc(doc(db, 'users', user.uid), updatePayload, { merge: true });
             userProfileCache[user.uid] = { ...(userProfileCache[user.uid] || {}), ...updatePayload };
+            try { localStorage.setItem('study_user_profile_' + user.uid, JSON.stringify(userProfileCache[user.uid])); } catch (e) {}
+
+            // Sync all historical chat messages in Firestore with the new privacy preference
+            syncUserPastMessagesPhotoPrivacy(user.uid, newIsPublic, userProfileCache[user.uid]?.photoURL).catch(e => console.warn(e));
+
+            // Immediately re-render currently visible chat messages so avatars update right away
+            if (activeChatMessagesList && activeChatMessagesList.length > 0 && typeof renderMessagesList === 'function') {
+              renderMessagesList(activeChatMessagesList);
+            }
 
             await renderHeader(user, window.navigateTo, signOut);
             closeFloatingModal();
@@ -7953,9 +7967,12 @@ export async function renderCommunityChat(user, navigateTo) {
     window.addEventListener('keydown', onKeyDown);
   };
 
+  let activeChatMessagesList = [];
+
   // Real-time messages renderer
   function renderMessagesList(messages) {
     if (!messagesContainer) return;
+    activeChatMessagesList = messages;
 
     if (messages.length === 0) {
       messagesContainer.innerHTML = `
@@ -7985,10 +8002,29 @@ export async function renderCommunityChat(user, navigateTo) {
       else if (m.messageType === 'document' || m.messageType === 'pdf') replySnippet = '📄 PDF: ' + (m.fileName || 'Document');
       if (replySnippet.length > 70) replySnippet = replySnippet.slice(0, 70) + '...';
 
-      // Avatar
+      // Avatar Resolution (Dynamically respects sender's current profile privacy for all past and new messages)
       let avatarHtml = '';
-      if (m.isPhotoPublic === true && m.senderPhoto) {
-        avatarHtml = `<img src="${m.senderPhoto}" class="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-indigo-500/40 shrink-0 shadow-sm" alt="${m.senderName}">`;
+      const isAdminMsg = m.senderRole === 'admin' || m.senderId === ADMIN_UID;
+      const senderProf = userProfileCache[m.senderId];
+
+      let shouldShowPhoto = false;
+      let photoSrc = null;
+
+      if (isAdminMsg) {
+        shouldShowPhoto = true;
+        photoSrc = senderProf?.photoURL || m.senderPhoto || '/icon.png';
+      } else if (senderProf && senderProf.isPhotoPublic !== undefined) {
+        // If sender profile is loaded, strictly obey their current privacy setting
+        shouldShowPhoto = senderProf.isPhotoPublic === true;
+        photoSrc = senderProf.photoURL || m.senderPhoto;
+      } else {
+        // Fallback to message document's snapshot while sender profile is being loaded
+        shouldShowPhoto = m.isPhotoPublic === true;
+        photoSrc = m.senderPhoto;
+      }
+
+      if (shouldShowPhoto && photoSrc) {
+        avatarHtml = `<img src="${photoSrc}" class="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-indigo-500/40 shrink-0 shadow-sm" alt="${m.senderName}" loading="lazy" decoding="async">`;
       } else {
         const initial = (m.senderName || 'U').charAt(0).toUpperCase();
         avatarHtml = `<div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center font-bold text-white text-xs sm:text-sm shrink-0 border border-white/15 shadow-sm">${initial}</div>`;
@@ -8141,11 +8177,34 @@ export async function renderCommunityChat(user, navigateTo) {
     }
   }
 
+  // Preload sender profiles so avatars for all senders in chat accurately reflect their current privacy
+  let isPreloadingProfiles = false;
+  async function syncChatSenderProfiles(msgs) {
+    if (!msgs || msgs.length === 0 || isPreloadingProfiles) return;
+    const missingUids = [...new Set(msgs.map(m => m.senderId).filter(id => id && (!userProfileCache[id] || userProfileCache[id].isPhotoPublic === undefined)))];
+    if (missingUids.length === 0) return;
+
+    isPreloadingProfiles = true;
+    try {
+      let anyLoaded = false;
+      await Promise.allSettled(missingUids.map(async (uid) => {
+        const prof = await getUserProfile(uid);
+        if (prof) anyLoaded = true;
+      }));
+      if (anyLoaded && messagesContainer && activeChatMessagesList === msgs) {
+        renderMessagesList(msgs);
+      }
+    } finally {
+      isPreloadingProfiles = false;
+    }
+  }
+
   // Subscribe to real-time chat updates
   chatUnsubscribe = listenCommunityChat((messages) => {
     localStorage.setItem('study_last_chat_viewed_time', Date.now().toString());
     updateUnreadChatBadges(0);
     renderMessagesList(messages);
+    syncChatSenderProfiles(messages);
   }, (err) => {
     if (messagesContainer) {
       messagesContainer.innerHTML = `

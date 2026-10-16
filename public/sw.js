@@ -1,5 +1,5 @@
 // Service Worker for StudyTracker Pro
-const CACHE_NAME = 'studytracker-v39';
+const CACHE_NAME = 'studytracker-v40';
 const ASSETS_TO_CACHE = [
     '/',
     '/style.css',

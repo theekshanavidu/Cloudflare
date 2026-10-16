@@ -9,7 +9,9 @@ import {
   onSnapshot,
   serverTimestamp,
   getDoc,
-  updateDoc
+  updateDoc,
+  getDocs,
+  where
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   ref as storageRef,
@@ -605,13 +607,39 @@ export async function setModeratorRole(targetUid, isModerator) {
 }
 
 /**
+ * Sync all past messages sent by a user in communityChat when they toggle photo privacy or update their photo
+ */
+export async function syncUserPastMessagesPhotoPrivacy(uid, isPublic, photoURL = null) {
+  if (!uid) return { success: false, error: "No UID provided." };
+  try {
+    const q = query(
+      collection(db, 'communityChat'),
+      where('senderId', '==', uid)
+    );
+    const snap = await getDocs(q);
+    const updatePromises = snap.docs.map(d => {
+      const payload = { isPhotoPublic: isPublic };
+      if (photoURL !== null) payload.senderPhoto = photoURL;
+      return updateDoc(d.ref, payload).catch(err => console.warn("Past msg sync err:", err));
+    });
+    await Promise.allSettled(updatePromises);
+    return { success: true, count: snap.docs.length };
+  } catch (e) {
+    console.warn("Error syncing past messages photo privacy:", e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
  * User Action: Update Profile Photo Privacy in Community Chat
  */
-export async function setPhotoPrivacy(uid, isPublic) {
+export async function setPhotoPrivacy(uid, isPublic, photoURL = null) {
   try {
-    await updateDoc(doc(db, 'users', uid), {
-      isPhotoPublic: isPublic
-    });
+    const updatePayload = { isPhotoPublic: isPublic };
+    if (photoURL !== null) updatePayload.photoURL = photoURL;
+    await updateDoc(doc(db, 'users', uid), updatePayload);
+    // Sync all past messages so historical messages also reflect the new preference
+    syncUserPastMessagesPhotoPrivacy(uid, isPublic, photoURL).catch(e => console.warn(e));
     return { success: true };
   } catch (e) {
     console.error("Error updating photo privacy:", e);
