@@ -5098,17 +5098,18 @@ export async function renderTuteSubject(subjectId, navigateTo, currentUser) {
   appContainer.innerHTML = `
     <div class="max-w-5xl mx-auto pt-6 pb-20 px-4">
         <!-- Breadcrumb Navigation -->
-        <div class="flex items-center justify-between gap-3 mb-6">
+        <div class="flex items-center justify-between gap-2.5 mb-6 flex-wrap">
             <button onclick="navigateTo('/tutes')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--bg-secondary)] hover:bg-[var(--glass-border)] text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-semibold transition-all cursor-pointer border border-[var(--glass-border)] shadow-sm">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                <span>Back to All Subjects</span>
+                <span>Back<span class="hidden sm:inline"> to All Subjects</span></span>
             </button>
 
             ${isAdminOrMod ? `
                 <div class="flex items-center gap-2">
                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30">
                         <span>🛡️</span>
-                        <span>Admin/Mod Mode</span>
+                        <span class="hidden sm:inline">Admin/Mod Mode</span>
+                        <span class="sm:hidden">Mod</span>
                     </span>
                     <button onclick="window.openAddTuteLessonModal('${subjectId}')" class="btn-primary py-1.5 px-3.5 text-xs sm:text-sm font-bold flex items-center gap-1.5 rounded-xl shadow-lg shadow-indigo-600/25">
                         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
@@ -5176,7 +5177,7 @@ export async function renderTuteSubject(subjectId, navigateTo, currentUser) {
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <h2 class="text-sm sm:text-base font-extrabold text-[var(--text-primary)] hover:text-indigo-300 transition-colors">${escapeHTML(lesson.title || 'Untitled Lesson')}</h2>
-                                        <span class="text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full bg-[var(--bg-root)] border border-[var(--glass-border)] text-[var(--text-secondary)] font-medium">
+                                        <span class="text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full bg-[var(--bg-root)] border border-[var(--glass-border)] text-[var(--text-secondary)] font-medium shrink-0">
                                             📄 ${lessonTutes.length} ${lessonTutes.length === 1 ? 'PDF' : 'PDFs'}
                                         </span>
                                     </div>
@@ -5185,19 +5186,21 @@ export async function renderTuteSubject(subjectId, navigateTo, currentUser) {
                             </div>
 
                             <!-- Actions & Expand Button -->
-                            <div class="flex items-center gap-2 self-end sm:self-auto shrink-0" onclick="event.stopPropagation()">
-                                ${isAdminOrMod ? `
-                                    <button type="button" onclick="window.openUploadTutePdfModal('${lesson.id}', '${escapeHTML((lesson.title || 'Lesson').replace(/'/g, "\\'"))}', '${subjectId}')" class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 text-white text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-sm cursor-pointer">
-                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-                                        <span>Upload PDF</span>
-                                    </button>
-                                    <button type="button" onclick="window.deleteTuteLesson('${lesson.id}', '${subjectId}')" class="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all text-xs cursor-pointer" title="Delete Lesson">
-                                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
-                                    </button>
-                                ` : ''}
+                            <div class="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--glass-border)]/50 shrink-0" onclick="event.stopPropagation()">
+                                <div class="flex items-center gap-1.5">
+                                    ${isAdminOrMod ? `
+                                        <button type="button" onclick="window.openUploadTutePdfModal('${lesson.id}', '${escapeHTML((lesson.title || 'Lesson').replace(/'/g, "\\'"))}', '${subjectId}')" class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-indigo-600/90 hover:bg-indigo-600 text-white text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-sm cursor-pointer">
+                                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                                            <span>Upload PDF</span>
+                                        </button>
+                                        <button type="button" onclick="window.deleteTuteLesson('${lesson.id}', '${subjectId}')" class="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all text-xs cursor-pointer" title="Delete Lesson">
+                                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
+                                        </button>
+                                    ` : ''}
+                                </div>
 
                                 <!-- Expand/Collapse Toggle Button -->
-                                <button type="button" onclick="window.toggleTuteLessonExpand('${lesson.id}')" class="px-2.5 py-1.5 rounded-xl bg-[var(--bg-root)] hover:bg-white/10 text-indigo-300 border border-[var(--glass-border)] text-xs font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer">
+                                <button type="button" onclick="window.toggleTuteLessonExpand('${lesson.id}')" class="px-3 py-1.5 rounded-xl bg-[var(--bg-root)] hover:bg-white/10 text-indigo-300 border border-[var(--glass-border)] text-xs font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer">
                                     <span id="expand-txt-${lesson.id}">${isExpanded ? 'Hide' : 'Expand'}</span>
                                     <svg id="expand-icon-${lesson.id}" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" class="transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}">
                                         <polyline points="6 9 12 15 18 9"></polyline>
@@ -5225,79 +5228,85 @@ export async function renderTuteSubject(subjectId, navigateTo, currentUser) {
                                 const safeCaption = hasCaption ? escapeHTML(doc.caption.trim()) : '';
 
                                 return `
-                                    <div class="p-3.5 sm:p-4 rounded-xl bg-[var(--bg-root)] border border-[var(--glass-border)] hover:border-indigo-500/40 transition-all flex flex-col gap-2.5">
-                                        <div class="flex items-start sm:items-center justify-between gap-3">
+                                    <div class="p-3.5 sm:p-4 rounded-2xl bg-[var(--bg-root)] border border-[var(--glass-border)] hover:border-indigo-500/40 transition-all flex flex-col gap-3 shadow-sm">
+                                        <!-- Row 1: File Info & Quick Actions -->
+                                        <div class="flex items-center justify-between gap-2.5">
                                             <!-- PDF Identity -->
                                             <div class="flex items-center gap-3 min-w-0 flex-1">
-                                                <div class="w-10 h-11 sm:w-11 sm:h-12 rounded-xl bg-gradient-to-br from-rose-500 to-red-700 flex flex-col items-center justify-center text-white shadow-md shrink-0">
-                                                    <span class="text-[7.5px] font-black tracking-wider uppercase">PDF</span>
-                                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+                                                <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-rose-500 to-red-700 flex flex-col items-center justify-center text-white shadow-md shrink-0">
+                                                    <span class="text-[7.5px] font-black tracking-wider uppercase leading-none">PDF</span>
+                                                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" class="mt-0.5">
                                                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                                                         <polyline points="14 2 14 8 20 8"></polyline>
                                                     </svg>
                                                 </div>
                                                 <div class="min-w-0 flex-1">
                                                     <h4 class="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate" title="${safeFileName}">${safeFileName}</h4>
-                                                    <div class="flex items-center gap-2 text-[10px] sm:text-[11px] text-[var(--text-secondary)] opacity-80 mt-0.5">
-                                                        <span>${formattedSize}</span>
+                                                    <div class="flex items-center gap-2 text-[10px] sm:text-[11px] text-[var(--text-secondary)] opacity-85 mt-0.5">
+                                                        <span class="font-semibold text-indigo-300">${formattedSize}</span>
                                                         ${doc.createdAtMs ? `<span>• ${new Date(doc.createdAtMs).toLocaleDateString()}</span>` : ''}
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            <!-- Actions Toolbar -->
-                                            <div class="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                                            <!-- Actions Toolbar: View, Download, Delete -->
+                                            <div class="flex items-center gap-1.5 shrink-0" onclick="event.stopPropagation()">
                                                 <!-- View PDF -->
-                                                <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1.5 rounded-lg bg-[var(--bg-secondary)] hover:bg-indigo-600/20 text-indigo-300 hover:text-white transition-all text-xs font-semibold inline-flex items-center gap-1 border border-[var(--glass-border)] cursor-pointer" title="Open PDF in new tab">
-                                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+                                                <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-[var(--bg-secondary)] hover:bg-indigo-600/20 text-indigo-300 hover:text-white transition-all text-xs font-semibold inline-flex items-center gap-1.5 border border-[var(--glass-border)] cursor-pointer" title="Open PDF">
+                                                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
                                                     <span class="hidden sm:inline">View</span>
                                                 </a>
 
                                                 <!-- Download PDF -->
-                                                <button type="button" onclick="window.downloadPdfFile('${fileUrl}', '${safeFileName.replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg bg-emerald-600/80 hover:bg-emerald-600 text-white transition-all text-xs font-semibold inline-flex items-center gap-1 shadow-sm cursor-pointer" title="Download to device">
-                                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                                                <button type="button" onclick="window.downloadPdfFile('${fileUrl}', '${safeFileName.replace(/'/g, "\\'")}')" class="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-emerald-600/80 hover:bg-emerald-600 text-white transition-all text-xs font-semibold inline-flex items-center gap-1.5 shadow-sm cursor-pointer" title="Download to device">
+                                                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                                                     <span class="hidden sm:inline">Download</span>
                                                 </button>
 
-                                                <!-- Admin/Moderator Forward, Edit & Delete Buttons -->
+                                                <!-- Delete PDF (Admin/Mod) -->
                                                 ${isAdminOrMod ? `
-                                                    <!-- Edit Caption -->
-                                                    <button type="button" onclick="event.stopPropagation(); window.openEditTuteCaptionModal('${doc.id}', '${safeCaption.replace(/'/g, "\\'")}', '${subjectId}', '${lesson.id}')" class="px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 transition-all text-xs font-bold inline-flex items-center gap-1 cursor-pointer shadow-sm" title="Edit Caption / විස්තරය වෙනස් කරන්න">
-                                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                                                        <span>Edit Caption</span>
-                                                    </button>
-
-                                                    <!-- Forward to Chat -->
-                                                    <button type="button" onclick="event.stopPropagation(); window.openForwardTuteToChatModal('${doc.id}', '${safeFileName.replace(/'/g, "\\'")}', ${doc.fileSize || 0}, '${fileUrl}', '${safeCaption.replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-300 hover:text-indigo-100 transition-all text-xs font-bold inline-flex items-center gap-1 border border-indigo-500/30 cursor-pointer shadow-sm" title="Forward this PDF to Community Chat">
-                                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                                                        <span>Forward to Chat</span>
-                                                    </button>
-
-                                                    <!-- Delete PDF -->
-                                                    <button type="button" onclick="event.stopPropagation(); window.deleteTuteDocument('${doc.id}', '${subjectId}', '${lesson.id}')" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all text-xs cursor-pointer" title="Delete PDF document">
-                                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6"/></svg>
+                                                    <button type="button" onclick="window.deleteTuteDocument('${doc.id}', '${subjectId}', '${lesson.id}')" class="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all text-xs cursor-pointer" title="Delete PDF document">
+                                                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6"/></svg>
                                                     </button>
                                                 ` : ''}
                                             </div>
                                         </div>
 
-                                        <!-- Caption Display -->
+                                        <!-- Row 2: Caption Display Box -->
                                         ${hasCaption ? `
-                                            <div class="px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--glass-border)] text-xs text-[var(--text-secondary)] leading-relaxed flex items-start justify-between gap-2">
+                                            <div class="px-3.5 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--glass-border)] text-xs flex items-start justify-between gap-2.5">
                                                 <div class="flex items-start gap-2 flex-1 min-w-0">
-                                                    <span class="text-indigo-400 font-bold shrink-0">💬 Caption:</span>
-                                                    <span class="text-[var(--text-primary)] font-medium whitespace-pre-wrap break-words">${safeCaption}</span>
+                                                    <span class="text-indigo-400 font-bold shrink-0 text-sm leading-none mt-0.5">💬</span>
+                                                    <div class="min-w-0 flex-1">
+                                                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-indigo-400/80 block mb-0.5">Caption</span>
+                                                        <p class="text-[var(--text-primary)] font-medium leading-relaxed whitespace-pre-wrap break-words text-xs sm:text-[13px]">${safeCaption}</p>
+                                                    </div>
                                                 </div>
                                                 ${isAdminOrMod ? `
-                                                    <button type="button" onclick="event.stopPropagation(); window.openEditTuteCaptionModal('${doc.id}', '${safeCaption.replace(/'/g, "\\'")}', '${subjectId}', '${lesson.id}')" class="text-amber-400 hover:text-amber-300 text-[11px] font-bold shrink-0 hover:underline cursor-pointer ml-1">Edit</button>
+                                                    <button type="button" onclick="event.stopPropagation(); window.openEditTuteCaptionModal('${doc.id}', '${safeCaption.replace(/'/g, "\\'")}', '${subjectId}', '${lesson.id}')" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-amber-300 hover:text-amber-200 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-xs font-bold shrink-0 transition-colors cursor-pointer" title="Edit Caption">
+                                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                                        <span>Edit</span>
+                                                    </button>
                                                 ` : ''}
                                             </div>
                                         ` : (isAdminOrMod ? `
-                                            <div class="px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)]/50 border border-dashed border-[var(--glass-border)] text-xs text-[var(--text-secondary)] flex items-center justify-between">
-                                                <span class="text-[11px] opacity-70">No caption provided.</span>
-                                                <button type="button" onclick="event.stopPropagation(); window.openEditTuteCaptionModal('${doc.id}', '', '${subjectId}', '${lesson.id}')" class="text-amber-400 hover:underline font-bold text-[11px] cursor-pointer">+ Add Caption</button>
+                                            <div class="px-3.5 py-2 rounded-xl bg-[var(--bg-secondary)]/60 border border-dashed border-[var(--glass-border)] text-xs flex items-center justify-between gap-2">
+                                                <span class="text-[11px] text-[var(--text-secondary)] italic">No caption provided.</span>
+                                                <button type="button" onclick="event.stopPropagation(); window.openEditTuteCaptionModal('${doc.id}', '', '${subjectId}', '${lesson.id}')" class="inline-flex items-center gap-1 text-amber-400 hover:text-amber-300 text-xs font-bold cursor-pointer">
+                                                    <span>+ Add Caption</span>
+                                                </button>
                                             </div>
                                         ` : '')}
+
+                                        <!-- Row 3: Admin Forward Action Bar -->
+                                        ${isAdminOrMod ? `
+                                            <div class="pt-1 flex items-center justify-end" onclick="event.stopPropagation()">
+                                                <button type="button" onclick="window.openForwardTuteToChatModal('${doc.id}', '${safeFileName.replace(/'/g, "\\'")}', ${doc.fileSize || 0}, '${fileUrl}', '${safeCaption.replace(/'/g, "\\'")}')" class="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/30 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-bold inline-flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm">
+                                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                                    <span>Forward to Community Chat</span>
+                                                </button>
+                                            </div>
+                                        ` : ''}
                                     </div>
                                 `;
                             }).join('')}
