@@ -1,7 +1,8 @@
 // Service Worker for StudyTracker Pro
-const CACHE_NAME = 'studytracker-v41';
+const CACHE_NAME = 'studytracker-v42';
 const ASSETS_TO_CACHE = [
     '/',
+    '/index.html',
     '/style.css',
     '/icon.png',
     '/new_year.png',
@@ -23,7 +24,6 @@ self.addEventListener('activate', (event) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
                     if (cacheName !== CACHE_NAME) {
-                        // Delete old caches
                         return caches.delete(cacheName);
                     }
                 })
@@ -40,22 +40,23 @@ self.addEventListener('fetch', (event) => {
     if (!event.request.url.startsWith('http')) return;
 
     const url = event.request.url;
-    // Never intercept Firebase / Firestore / Google APIs / R2 Storage in SW
+    // Never intercept Firebase / Firestore / Google APIs / Cloudflare Storage in SW
     if (url.includes('firestore.googleapis.com') ||
         url.includes('identitytoolkit.googleapis.com') ||
         url.includes('securetoken.googleapis.com') ||
+        url.includes('firebasestorage.googleapis.com') ||
         url.includes('apis.google.com') ||
-        url.includes('r2.cloudflarestorage.com')) {
+        url.includes('r2.cloudflarestorage.com') ||
+        url.includes('.r2.dev')) {
         return;
     }
 
+    const isNavigate = event.request.mode === 'navigate';
+
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
-            // Stale-while-revalidate strategy: 
-            // 1. Fetch from network in the background to get latest version
             const fetchPromise = fetch(event.request)
                 .then((networkResponse) => {
-                    // Update cache with new response
                     if (networkResponse && networkResponse.status === 200 && (networkResponse.type === 'basic' || networkResponse.type === 'cors')) {
                         const responseToCache = networkResponse.clone();
                         caches.open(CACHE_NAME).then((cache) => {
@@ -64,13 +65,15 @@ self.addEventListener('fetch', (event) => {
                     }
                     return networkResponse;
                 })
-                .catch(() => {
-                    // Return cached response if available when network fails
-                    return cachedResponse;
+                .catch(async () => {
+                    if (cachedResponse) return cachedResponse;
+                    if (isNavigate) {
+                        const indexResp = (await caches.match('/index.html')) || (await caches.match('/'));
+                        if (indexResp) return indexResp;
+                    }
+                    return new Response('Network unavailable', { status: 503, statusText: 'Service Unavailable' });
                 });
 
-            // 2. Immediately return the cached response (Instant Load) 
-            // OR if not cached, wait for the network fetch
             return cachedResponse || fetchPromise;
         })
     );

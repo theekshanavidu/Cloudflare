@@ -33,7 +33,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { auth, db, ADMIN_UID, NILANTHA_MODERATORS, RAVINDU_MODERATORS } from "./firebase.js";
-import { uploadToR2 } from "./r2.js";
+import { uploadMediaFile, getCleanFileName } from "./storage.js";
 import {
   listenCommunityChat,
   sendTextMessage,
@@ -2192,8 +2192,9 @@ export async function renderAdmin(user) {
   const usersSnap = await getDocs(collection(db, 'users'));
   const allUsers = usersSnap.docs.map(dsc => ({ id: dsc.id, ...dsc.data() }));
 
-  // Update total users count
-  document.getElementById('total-users-count').textContent = allUsers.length;
+  // Update total users count safely if still on page
+  const totalUsersEl = document.getElementById('total-users-count');
+  if (totalUsersEl) totalUsersEl.textContent = allUsers.length;
 
   // Track daily logins (users who logged in today)
   const today = getLocalDateString();
@@ -2212,14 +2213,16 @@ export async function renderAdmin(user) {
       
       // 1. Daily Logins (Unique users who had any activity today)
       const uniqueDailyIds = new Set(currentDailyUsers.map(d => d.userId));
-      document.getElementById('daily-logins-count').textContent = uniqueDailyIds.size || 0;
+      const dailyEl = document.getElementById('daily-logins-count');
+      if (dailyEl) dailyEl.textContent = uniqueDailyIds.size || 0;
 
       // 2. Active Users (Users active within last 5 minutes)
       const updateActiveCount = () => {
         const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
         currentActiveUsers = currentDailyUsers.filter(d => d.lastActive > fiveMinutesAgo);
         const uniqueActiveIds = new Set(currentActiveUsers.map(d => d.userId));
-        document.getElementById('active-users-count').textContent = uniqueActiveIds.size || 0;
+        const activeEl = document.getElementById('active-users-count');
+        if (activeEl) activeEl.textContent = uniqueActiveIds.size || 0;
       };
 
       // Initial update
@@ -2230,12 +2233,16 @@ export async function renderAdmin(user) {
       window._adminStatsInterval = setInterval(updateActiveCount, 30000);
     }, (error) => {
       console.log('Activity query error:', error);
-      document.getElementById('daily-logins-count').textContent = '0';
-      document.getElementById('active-users-count').textContent = '0';
+      const dailyEl = document.getElementById('daily-logins-count');
+      const activeEl = document.getElementById('active-users-count');
+      if (dailyEl) dailyEl.textContent = '0';
+      if (activeEl) activeEl.textContent = '0';
     });
   } catch (e) {
-    document.getElementById('daily-logins-count').textContent = '0';
-    document.getElementById('active-users-count').textContent = '0';
+    const dailyEl = document.getElementById('daily-logins-count');
+    const activeEl = document.getElementById('active-users-count');
+    if (dailyEl) dailyEl.textContent = '0';
+    if (activeEl) activeEl.textContent = '0';
   }
 
   const showUsersListModal = (title, userIds, allUsersData) => {
@@ -5057,7 +5064,11 @@ export async function renderTuteSubject(subjectId, navigateTo, currentUser) {
                                     ${isAdminOrMod ? `<button onclick="window.openUploadTutePdfModal('${lesson.id}', '${escapeHTML((lesson.title || 'Lesson').replace(/'/g, "\\'"))}', '${subjectId}')" class="text-indigo-400 hover:underline font-bold ml-1.5">Upload one now</button>` : ''}
                                 </div>
                             ` : lessonTutes.map(doc => {
-                                const safeFileName = escapeHTML(doc.fileName || doc.title || 'Tutorial.pdf');
+                                let dName = doc.fileName || doc.title || 'Tutorial.pdf';
+                                if (/^[_ \-\.%20]+$/.test(dName.replace(/\.pdf$/i, ''))) {
+                                    dName = (doc.caption && doc.caption.trim().length < 50 ? doc.caption.trim() + '.pdf' : 'Tutorial.pdf');
+                                }
+                                const safeFileName = escapeHTML(dName);
                                 const formattedSize = doc.fileSize ? formatFileSize(doc.fileSize) : 'PDF Document';
                                 const fileUrl = sanitizeUrl(doc.mediaUrl);
                                 const hasCaption = !!(doc.caption && doc.caption.trim());
@@ -5312,24 +5323,24 @@ export async function renderTuteSubject(subjectId, navigateTo, currentUser) {
       btn.disabled = true;
       statusBox.classList.remove('hidden');
       statusBox.classList.add('flex');
-      statusText.textContent = "Uploading to Cloudflare R2 storage...";
+      statusText.textContent = "Uploading PDF document to storage...";
 
       try {
-        const rawName = file.name.replace(/\.[^/.]+$/, "");
-        const safeBaseName = sanitizeInput(rawName.replace(/[^\w\s.-]/gi, '_')).slice(0, 80);
-        const safeFileName = `${safeBaseName || 'Tutorial'}.pdf`;
-        const objectKey = `tutes/${subjId}/${lessonId}/${Date.now()}_${safeFileName}`;
+        // Preserve authentic Sinhala / Unicode user file name
+        const displayFileName = getCleanFileName(file.name, 'Tutorial.pdf');
+        // Clean ASCII key for cloud storage
+        const storageKey = `tutes/${subjId}/${lessonId}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.pdf`;
 
-        // Direct upload to Cloudflare R2
-        const mediaUrl = await uploadToR2(file, objectKey, 'application/pdf');
+        // Direct resilient upload (Firebase Storage + Cloudflare R2)
+        const mediaUrl = await uploadMediaFile(file, storageKey, 'application/pdf');
 
         statusText.textContent = "Saving document information...";
 
         await addDoc(collection(db, 'tuteDocuments'), {
           subjectId: subjId,
           lessonId: lessonId,
-          title: safeFileName,
-          fileName: safeFileName,
+          title: displayFileName,
+          fileName: displayFileName,
           fileSize: file.size,
           mediaUrl: mediaUrl,
           caption: sanitizeInput(caption),
@@ -8779,7 +8790,11 @@ export async function renderCommunityChat(user, navigateTo) {
           </div>
         `;
       } else if (m.messageType === 'document' || m.messageType === 'pdf') {
-        const safeFileName = escapeHTML(m.fileName || 'Document.pdf');
+        let dName = m.fileName;
+        if (!dName || /^[_ \-\.%20]+$/.test(dName.replace(/\.pdf$/i, ''))) {
+          dName = (m.text && m.text.trim().length < 50 ? m.text.trim() : 'Document.pdf');
+        }
+        const safeFileName = escapeHTML(dName);
         const formattedSize = m.fileSize ? formatFileSize(m.fileSize) : 'PDF Document';
         const fileUrl = sanitizeUrl(m.mediaUrl);
         bodyHtml = `

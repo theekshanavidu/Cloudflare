@@ -13,13 +13,8 @@ import {
   getDocs,
   where
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import {
-  ref as storageRef,
-  uploadBytes,
-  getDownloadURL
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 import { db, storage, ADMIN_UID, NILANTHA_MODERATORS, RAVINDU_MODERATORS } from "./firebase.js";
-import { uploadToR2 } from "./r2.js";
+import { uploadMediaFile, getCleanFileName } from "./storage.js";
 import { sanitizeInput } from "./security.js";
 
 // Cooldown tracker to prevent rapid spamming
@@ -313,15 +308,9 @@ export async function sendImageMessage(user, file, optionalCaption = '', replyTo
 
   try {
     const compressedBlob = await compressChatImage(file);
-    const fileName = `chat_media/images/${Date.now()}_${user.uid}.jpg`;
+    const storageKey = `chat_media/images/${Date.now()}_${user.uid}.jpg`;
     
-    let mediaUrl;
-    try {
-      mediaUrl = await uploadToR2(compressedBlob, fileName, 'image/jpeg');
-    } catch (r2Err) {
-      console.warn("R2 upload blocked by CORS/Bucket rule. Using instant local Data URL fallback:", r2Err);
-      mediaUrl = await blobToDataUrl(compressedBlob);
-    }
+    const mediaUrl = await uploadMediaFile(compressedBlob, storageKey, 'image/jpeg');
 
     const { senderName, senderPhoto, isPhotoPublic, senderRole } = await getSenderDetails(user);
     const expireAtTimestamp = now + (30 * 24 * 60 * 60 * 1000);
@@ -376,21 +365,12 @@ export async function sendPdfMessage(user, file, optionalCaption = '', replyTo =
   }
 
   try {
-    const rawName = file.name.replace(/\.[^/.]+$/, "");
-    const safeBaseName = sanitizeInput(rawName.replace(/[^\w\s.-]/gi, '_')).slice(0, 80);
-    const safeFileName = `${safeBaseName || 'Document'}.pdf`;
-    const objectKey = `chat_media/documents/${Date.now()}_${user.uid}_${safeFileName}`;
+    // Preserve authentic Sinhala / Unicode filename
+    const displayFileName = getCleanFileName(file.name, 'Document.pdf');
+    // ASCII-safe storage object key
+    const storageKey = `chat_media/documents/${user.uid}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.pdf`;
 
-    let mediaUrl;
-    try {
-      mediaUrl = await uploadToR2(file, objectKey, 'application/pdf');
-    } catch (r2Err) {
-      console.warn("R2 PDF upload blocked. Using Data URL fallback:", r2Err);
-      if (file.size > 8 * 1024 * 1024) {
-        throw new Error("Cloudflare R2 upload failed and file is too large for fallback: " + r2Err.message);
-      }
-      mediaUrl = await blobToDataUrl(file);
-    }
+    const mediaUrl = await uploadMediaFile(file, storageKey, 'application/pdf');
 
     const { senderName, senderPhoto, isPhotoPublic, senderRole } = await getSenderDetails(user);
     const expireAtTimestamp = now + (30 * 24 * 60 * 60 * 1000);
@@ -404,7 +384,7 @@ export async function sendPdfMessage(user, file, optionalCaption = '', replyTo =
       isPhotoPublic: isPhotoPublic,
       senderRole: senderRole,
       messageType: 'document',
-      fileName: safeFileName,
+      fileName: displayFileName,
       fileSize: file.size,
       text: sanitizeInput((optionalCaption || '').trim()),
       mediaUrl: mediaUrl,
@@ -435,6 +415,7 @@ export async function forwardDocumentToChat(user, { fileName, fileSize, mediaUrl
   try {
     const { senderName, senderPhoto, isPhotoPublic, senderRole } = await getSenderDetails(user);
     const expireAtTimestamp = now + (30 * 24 * 60 * 60 * 1000);
+    const displayFileName = getCleanFileName(fileName, 'Tutorial.pdf');
 
     const messageDoc = {
       senderId: user.uid,
@@ -443,7 +424,7 @@ export async function forwardDocumentToChat(user, { fileName, fileSize, mediaUrl
       isPhotoPublic: isPhotoPublic,
       senderRole: senderRole,
       messageType: 'document',
-      fileName: sanitizeInput(fileName || 'Tutorial.pdf'),
+      fileName: displayFileName,
       fileSize: fileSize || 0,
       text: sanitizeInput((caption || '').trim()),
       mediaUrl: mediaUrl,
@@ -577,13 +558,7 @@ export async function sendVoiceMessage(user, audioBlob, durationSeconds, replyTo
     const fileName = `chat_media/voices/${Date.now()}_${user.uid}.${extension}`;
     const contentType = audioBlob.type || 'audio/webm';
     
-    let mediaUrl;
-    try {
-      mediaUrl = await uploadToR2(audioBlob, fileName, contentType);
-    } catch (r2Err) {
-      console.warn("R2 voice upload blocked by CORS/Bucket rule. Using instant local Data URL fallback:", r2Err);
-      mediaUrl = await blobToDataUrl(audioBlob);
-    }
+    const mediaUrl = await uploadMediaFile(audioBlob, fileName, contentType);
 
     const { senderName, senderPhoto, isPhotoPublic, senderRole } = await getSenderDetails(user);
     const expireAtTimestamp = now + (30 * 24 * 60 * 60 * 1000);
