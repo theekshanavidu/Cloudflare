@@ -161,6 +161,11 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create, update, delete: if isModerator();
     }
+
+    // ================= FILE REGISTRY (Deduplication) =================
+    match /fileRegistry/{hashId} {
+      allow read, write: if isAuthenticated();
+    }
   }
 }
 

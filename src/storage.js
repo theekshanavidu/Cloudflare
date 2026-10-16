@@ -3,7 +3,18 @@ import {
   uploadBytes,
   getDownloadURL
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import { storage } from "./firebase.js";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  query,
+  where,
+  limit,
+  getDocs,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { storage, db } from "./firebase.js";
 import { uploadToR2 } from "./r2.js";
 
 /**
@@ -37,14 +48,154 @@ export async function blobToDataUrl(blob) {
 }
 
 /**
- * Robust Multi-Engine Storage Uploader.
+ * Compute SHA-256 hash of a Blob / File using native Web Crypto API
+ */
+export async function computeFileHash(fileBlob) {
+  try {
+    if (!window.crypto || !window.crypto.subtle) return null;
+    const arrayBuffer = await fileBlob.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch (err) {
+    console.warn("Could not compute file SHA-256 hash:", err);
+    return null;
+  }
+}
+
+/**
+ * Check if the document was already uploaded to R2 / Storage previously.
+ * 1. Checks Firestore 'fileRegistry' by SHA-256 hash (Fastest & exact content match)
+ * 2. Checks 'tuteDocuments' & 'communityChat' collections by file size + clean name (Legacy match)
+ */
+export async function findExistingUploadedFile(fileBlob, originalFileName = '') {
+  if (!fileBlob) return null;
+
+  const cleanName = getCleanFileName(originalFileName || fileBlob.name || '');
+
+  // 1. Exact SHA-256 content check via fileRegistry
+  let hash = null;
+  try {
+    hash = await computeFileHash(fileBlob);
+    if (hash) {
+      const regDocRef = doc(db, 'fileRegistry', hash);
+      const regSnap = await getDoc(regDocRef);
+      if (regSnap.exists()) {
+        const data = regSnap.data();
+        if (data && data.mediaUrl) {
+          console.log(`⚡ [Storage Deduplication] Exact SHA-256 match found in registry: ${hash} -> ${data.mediaUrl}`);
+          return {
+            mediaUrl: data.mediaUrl,
+            sha256: hash,
+            isDuplicate: true,
+            source: 'registry'
+          };
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("fileRegistry lookup failed:", err);
+  }
+
+  // 2. Legacy check: Size + Name in existing tuteDocuments or communityChat (for files uploaded earlier before registry was created)
+  if (fileBlob.size && cleanName) {
+    try {
+      // Check in tuteDocuments
+      const tutesQuery = query(
+        collection(db, 'tuteDocuments'),
+        where('fileName', '==', cleanName),
+        where('fileSize', '==', fileBlob.size),
+        limit(1)
+      );
+      const tutesSnap = await getDocs(tutesQuery);
+      if (!tutesSnap.empty) {
+        const existingTute = tutesSnap.docs[0].data();
+        if (existingTute && existingTute.mediaUrl) {
+          console.log(`⚡ [Storage Deduplication] Legacy tute match found (${cleanName}, ${fileBlob.size}b) -> ${existingTute.mediaUrl}`);
+          if (hash) {
+            setDoc(doc(db, 'fileRegistry', hash), {
+              sha256: hash,
+              mediaUrl: existingTute.mediaUrl,
+              fileName: cleanName,
+              fileSize: fileBlob.size,
+              indexedFrom: 'legacy_tutes',
+              createdAt: serverTimestamp()
+            }).catch(e => console.warn("Failed to auto-index legacy file:", e));
+          }
+          return {
+            mediaUrl: existingTute.mediaUrl,
+            sha256: hash,
+            isDuplicate: true,
+            source: 'legacy_tutes'
+          };
+        }
+      }
+
+      // Check in communityChat
+      const chatQuery = query(
+        collection(db, 'communityChat'),
+        where('messageType', '==', 'document'),
+        where('fileName', '==', cleanName),
+        where('fileSize', '==', fileBlob.size),
+        limit(1)
+      );
+      const chatSnap = await getDocs(chatQuery);
+      if (!chatSnap.empty) {
+        const existingChat = chatSnap.docs[0].data();
+        if (existingChat && existingChat.mediaUrl) {
+          console.log(`⚡ [Storage Deduplication] Legacy chat match found (${cleanName}, ${fileBlob.size}b) -> ${existingChat.mediaUrl}`);
+          if (hash) {
+            setDoc(doc(db, 'fileRegistry', hash), {
+              sha256: hash,
+              mediaUrl: existingChat.mediaUrl,
+              fileName: cleanName,
+              fileSize: fileBlob.size,
+              indexedFrom: 'legacy_chat',
+              createdAt: serverTimestamp()
+            }).catch(e => console.warn("Failed to auto-index legacy file:", e));
+          }
+          return {
+            mediaUrl: existingChat.mediaUrl,
+            sha256: hash,
+            isDuplicate: true,
+            source: 'legacy_chat'
+          };
+        }
+      }
+    } catch (err) {
+      console.warn("Legacy file matching failed:", err);
+    }
+  }
+
+  return { hash, isDuplicate: false };
+}
+
+/**
+ * Robust Multi-Engine Storage Uploader with Deduplication.
  * Strategy:
+ * 0. Deduplication Pre-Check: If exact same file already exists in R2/Storage, immediately reuse its URL!
  * 1. Firebase Storage (Standard Google Cloud Storage with web CORS)
  * 2. Cloudflare R2 (S3-compatible Direct Storage)
  * 3. Base64 Data URL fallback for files under 750KB
  */
-export async function uploadMediaFile(fileBlob, destinationPath, contentType = 'application/octet-stream') {
+export async function uploadMediaFile(fileBlob, destinationPath, contentType = 'application/octet-stream', originalFileName = '') {
+  let fileHash = null;
+
+  // 0. Deduplication Pre-Check: Instant reuse if file already exists in R2 / Cloud Storage
+  try {
+    const existing = await findExistingUploadedFile(fileBlob, originalFileName || fileBlob.name);
+    if (existing && existing.isDuplicate && existing.mediaUrl) {
+      return existing.mediaUrl;
+    }
+    if (existing && existing.hash) {
+      fileHash = existing.hash;
+    }
+  } catch (e) {
+    console.warn("Deduplication pre-check failed, continuing with direct upload:", e);
+  }
+
   const errors = [];
+  let uploadedUrl = null;
 
   // 1. First attempt: Firebase Storage
   try {
@@ -52,7 +203,7 @@ export async function uploadMediaFile(fileBlob, destinationPath, contentType = '
     const snap = await uploadBytes(fileRef, fileBlob, { contentType });
     const downloadUrl = await getDownloadURL(snap.ref);
     if (downloadUrl) {
-      return downloadUrl;
+      uploadedUrl = downloadUrl;
     }
   } catch (fbErr) {
     console.warn("Firebase Storage upload skipped/failed:", fbErr);
@@ -60,24 +211,49 @@ export async function uploadMediaFile(fileBlob, destinationPath, contentType = '
   }
 
   // 2. Second attempt: Cloudflare R2
-  try {
-    const r2Url = await uploadToR2(fileBlob, destinationPath, contentType);
-    if (r2Url) {
-      return r2Url;
+  if (!uploadedUrl) {
+    try {
+      const r2Url = await uploadToR2(fileBlob, destinationPath, contentType);
+      if (r2Url) {
+        uploadedUrl = r2Url;
+      }
+    } catch (r2Err) {
+      console.warn("Cloudflare R2 upload skipped/failed:", r2Err);
+      errors.push(`Cloudflare R2 (${r2Err.message})`);
     }
-  } catch (r2Err) {
-    console.warn("Cloudflare R2 upload skipped/failed:", r2Err);
-    errors.push(`Cloudflare R2 (${r2Err.message})`);
   }
 
   // 3. Fallback: Data URL if file is small enough for Firestore (< 750KB)
-  if (fileBlob.size && fileBlob.size < 750 * 1024) {
+  if (!uploadedUrl && fileBlob.size && fileBlob.size < 750 * 1024) {
     try {
       console.warn("Using local Data URL fallback for small attachment");
-      return await blobToDataUrl(fileBlob);
+      uploadedUrl = await blobToDataUrl(fileBlob);
     } catch (dataErr) {
       errors.push(`Data URL (${dataErr.message})`);
     }
+  }
+
+  if (uploadedUrl) {
+    // Register file hash in registry for future deduplication lookups
+    try {
+      if (!fileHash) {
+        fileHash = await computeFileHash(fileBlob);
+      }
+      if (fileHash) {
+        setDoc(doc(db, 'fileRegistry', fileHash), {
+          sha256: fileHash,
+          mediaUrl: uploadedUrl,
+          fileName: getCleanFileName(originalFileName || fileBlob.name || ''),
+          fileSize: fileBlob.size || 0,
+          contentType,
+          createdAt: serverTimestamp()
+        }).catch(err => console.warn("Failed to register uploaded file in registry:", err));
+      }
+    } catch (regErr) {
+      console.warn("Registry recording failed:", regErr);
+    }
+
+    return uploadedUrl;
   }
 
   const combined = errors.join(' | ');

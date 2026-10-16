@@ -370,7 +370,7 @@ export async function sendPdfMessage(user, file, optionalCaption = '', replyTo =
     // ASCII-safe storage object key
     const storageKey = `chat_media/documents/${user.uid}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.pdf`;
 
-    const mediaUrl = await uploadMediaFile(file, storageKey, 'application/pdf');
+    const mediaUrl = await uploadMediaFile(file, storageKey, 'application/pdf', displayFileName);
 
     const { senderName, senderPhoto, isPhotoPublic, senderRole } = await getSenderDetails(user);
     const expireAtTimestamp = now + (30 * 24 * 60 * 60 * 1000);

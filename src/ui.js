@@ -5331,8 +5331,8 @@ export async function renderTuteSubject(subjectId, navigateTo, currentUser) {
         // Clean ASCII key for cloud storage
         const storageKey = `tutes/${subjId}/${lessonId}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.pdf`;
 
-        // Direct resilient upload (Firebase Storage + Cloudflare R2)
-        const mediaUrl = await uploadMediaFile(file, storageKey, 'application/pdf');
+        // Direct resilient upload (Deduplication + Firebase Storage + Cloudflare R2)
+        const mediaUrl = await uploadMediaFile(file, storageKey, 'application/pdf', displayFileName);
 
         statusText.textContent = "Saving document information...";
 
