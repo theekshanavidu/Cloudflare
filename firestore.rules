@@ -150,5 +150,17 @@ service cloud.firestore {
       allow delete: if isModerator() || (isAuthenticated() && resource.data.senderId == request.auth.uid);
       allow update: if isAuthenticated() && resource.data.senderId == request.auth.uid;
     }
+
+    // ================= TUTES & LESSONS (2027 A/L) =================
+    match /tuteLessons/{lessonId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isModerator();
+    }
+
+    match /tuteDocuments/{docId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isModerator();
+    }
   }
 }
+

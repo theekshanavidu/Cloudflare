@@ -109,8 +109,7 @@ async function router() {
             animatePageIn();
             return;
         } else if (path === '/simulation') {
-            UI.renderSimulation(navigateTo);
-            animatePageIn();
+            navigateTo('/tutes');
             return;
         } else if (path === '/contact') {
             UI.renderContact(navigateTo, currentUser);
@@ -177,6 +176,12 @@ async function router() {
                 alert("Access Denied");
                 navigateTo('/home');
             }
+        } else if (path === '/tutes') {
+            await UI.renderTutes(navigateTo, currentUser);
+        } else if (path.startsWith('/tutes/')) {
+            const parts = path.split('/');
+            const subjectId = parts[2];
+            await UI.renderTuteSubject(subjectId, navigateTo, currentUser);
         }
         // Dynamic Routes for Recordings
         else if (path.startsWith('/recording/')) {

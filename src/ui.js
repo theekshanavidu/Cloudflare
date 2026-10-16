@@ -29,14 +29,17 @@ import {
   writeBatch,
   onSnapshot,
   arrayUnion,
-  limit
+  limit,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { auth, db, ADMIN_UID, NILANTHA_MODERATORS, RAVINDU_MODERATORS } from "./firebase.js";
+import { uploadToR2 } from "./r2.js";
 import {
   listenCommunityChat,
   sendTextMessage,
   sendImageMessage,
   sendPdfMessage,
+  forwardDocumentToChat,
   sendVoiceMessage,
   deleteCommunityMessage,
   voiceRecorder,
@@ -483,7 +486,7 @@ export async function renderHeader(user, navigate, logout) {
                 </span>
             </button>
             <button class="${getNavClass('/contact')}" onclick="navigateTo('/contact')">Contact Us</button>
-            <button class="${getNavClass('/simulation')}" onclick="navigateTo('/simulation')">Simulation</button>
+            <button class="${getNavClass('/tutes')}" onclick="navigateTo('/tutes')">Tutes</button>
             <button class="${getNavClass('/resources')}" onclick="navigateTo('/resources')">Resources</button>
             ${user.uid === ADMIN_UID ? `<button class="${adminClass}" onclick="navigateTo('/adminpanel')">Admin Dashboard</button>` : ''}
         </nav>
@@ -4329,7 +4332,7 @@ export function updateMobileNav(currentPath) {
   const isRecordings = currentPath.startsWith('/recording') || currentPath === '/recordings';
   const isLive = currentPath === '/live';
   const isChat = currentPath === '/chat';
-  const isSimulation = currentPath === '/simulation' || currentPath === '/organicgame';
+  const isTutes = currentPath.startsWith('/tutes');
   const isResources = currentPath === '/resources';
   const isContact = currentPath === '/contact';
   const isProfile = currentPath === '/profile';
@@ -4410,13 +4413,14 @@ export function updateMobileNav(currentPath) {
                 </span>
             </div>
 
-            <div class="mobile-drawer-item ${isSimulation ? 'active' : ''}" onclick="window.closeMobileDrawer(); navigateTo('/simulation')">
+            <div class="mobile-drawer-item ${isTutes ? 'active' : ''}" onclick="window.closeMobileDrawer(); navigateTo('/tutes')">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M10 2v7.31L4.41 18.5A2 2 0 0 0 6 22h12a2 2 0 0 0 1.59-3.5L14 9.31V2"></path>
-                    <line x1="8.5" y1="2" x2="15.5" y2="2"></line>
-                    <line x1="7" y1="15" x2="17" y2="15"></line>
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    <line x1="9" y1="7" x2="15" y2="7"></line>
+                    <line x1="9" y1="11" x2="15" y2="11"></line>
                 </svg>
-                <span>Simulation Labs</span>
+                <span>Tutes & Materials</span>
             </div>
 
             <div class="mobile-drawer-item ${isResources ? 'active' : ''}" onclick="window.closeMobileDrawer(); navigateTo('/resources')">
@@ -4728,61 +4732,746 @@ export function renderContact(navigate, user) {
     };
 }
 
+// =========================================================================
+// ===== TUTES & STUDY MATERIALS MODULE (2027 A/L BATCH) ===================
+// =========================================================================
+
+export const TUTE_TEACHERS_2027 = [
+  { id: 'maths', name: 'Ruwan Darshana', subject: 'Combined Maths', img: 'https://api.combinedmaths.lk/files-public/profiles/281124/1862199793225306112.jpg', color: 'indigo', icon: '📐' },
+  { id: 'com-maths-manoj', name: 'Manoj Solangarachchi', subject: 'Combine Maths', img: monojImg, color: 'blue', icon: '📐' },
+  { id: 'physics', name: 'Anuradha Perera', subject: 'Physics', img: 'https://static.indeepa.lk/lecturer/7/en/652248466c448.jpg', color: 'cyan', icon: '⚡' },
+  { id: 'chemistry', name: 'Amila Dasanayake', subject: 'Chemistry', img: 'https://static.indeepa.lk/lecturer/6/en/6522475ddf2bf.jpg', color: 'emerald', icon: '🧪' },
+  { id: 'vikum-maths', name: 'Vikum Harshana', subject: 'Combine Maths', img: vikumImg, color: 'purple', icon: '📐' }
+];
+
+export async function checkIsAdminOrMod(user) {
+  if (!user) return false;
+  if (user.uid === ADMIN_UID) return true;
+  if (NILANTHA_MODERATORS.includes(user.uid) || RAVINDU_MODERATORS.includes(user.uid)) return true;
+  try {
+    const profile = await getUserProfile(user.uid);
+    if (profile && (profile.role === 'moderator' || profile.isModerator === true)) {
+      return true;
+    }
+  } catch (e) {
+    console.warn("Could not check moderator role for tutes:", e);
+  }
+  return false;
+}
+
+export function showTuteToast(message, type = 'success', action = null) {
+  const existing = document.getElementById('tute-toast-container');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'tute-toast-container';
+  toast.className = 'fixed bottom-5 right-5 z-[150] flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-md border text-sm font-semibold transition-all transform translate-y-3 opacity-0 animate-fade-in';
+  
+  if (type === 'success') {
+    toast.className += ' bg-emerald-950/90 text-emerald-200 border-emerald-500/40 shadow-emerald-500/20';
+  } else if (type === 'error') {
+    toast.className += ' bg-rose-950/90 text-rose-200 border-rose-500/40 shadow-rose-500/20';
+  } else {
+    toast.className += ' bg-indigo-950/90 text-indigo-200 border-indigo-500/40 shadow-indigo-500/20';
+  }
+
+  toast.innerHTML = `
+    <span class="text-base">${type === 'success' ? '✅' : (type === 'error' ? '⚠️' : 'ℹ️')}</span>
+    <span class="flex-1">${escapeHTML(message)}</span>
+    ${action ? `<button id="tute-toast-action-btn" class="px-2.5 py-1 text-xs rounded-lg bg-white/20 hover:bg-white/30 text-white font-bold transition-colors cursor-pointer shrink-0">${action.text}</button>` : ''}
+    <button onclick="this.parentElement.remove()" class="text-white/60 hover:text-white p-1 ml-1 cursor-pointer">&times;</button>
+  `;
+
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => {
+    toast.classList.remove('translate-y-3', 'opacity-0');
+  });
+
+  if (action && action.onClick) {
+    const btn = toast.querySelector('#tute-toast-action-btn');
+    if (btn) btn.onclick = () => {
+      action.onClick();
+      toast.remove();
+    };
+  }
+
+  setTimeout(() => {
+    if (toast.parentElement) {
+      toast.classList.add('opacity-0', 'translate-y-3');
+      setTimeout(() => toast.remove(), 300);
+    }
+  }, 4500);
+}
+
+// Download PDF file helper
+export async function downloadPdfFile(pdfUrl, filename = 'Tutorial.pdf') {
+  try {
+    const res = await fetch(pdfUrl);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  } catch (err) {
+    const a = document.createElement('a');
+    a.href = pdfUrl;
+    a.download = filename;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+}
+window.downloadPdfFile = downloadPdfFile;
+
+// Backwards-compatible alias for simulation route
 export function renderSimulation(navigate) {
+  navigate('/tutes');
+}
+
+/**
+ * Render main Tutes landing page displaying 2027 A/L subject cards
+ */
+export async function renderTutes(navigateTo, currentUser) {
   const appContainer = document.getElementById('app-container');
+  if (!appContainer) return;
+
   appContainer.innerHTML = `
-        <div id="simulation-testing-popup" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] transition-opacity duration-300">
-            <div class="bg-[var(--bg-secondary)] border-2 border-indigo-500/50 p-8 rounded-2xl shadow-[0_0_40px_rgba(79,70,229,0.4)] w-[90%] max-w-md mx-auto text-center transform scale-95 transition-transform duration-300">
-                <div class="text-6xl mb-4">🧪</div>
-                <h3 class="text-2xl font-bold text-white mb-4">Simulation Under Testing</h3>
-                <p class="text-slate-300 mb-6">Please note that the simulation features are currently in Testing Mode.</p>
-                <button onclick="document.getElementById('simulation-testing-popup').remove()" class="btn-primary w-full py-3 font-bold text-lg">OK</button>
+    <div class="max-w-6xl mx-auto pt-8 pb-16 px-4">
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+            <div>
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-2">
+                    <span>✨ 2027 A/L Study Hub</span>
+                </div>
+                <h1 class="text-3xl md:text-4xl font-extrabold text-[var(--text-primary)] tracking-tight">Tutes & Revision Materials 📑</h1>
+                <p class="text-sm md:text-base text-[var(--text-secondary)] mt-1">Official lesson tutorials, theory notes & reference PDF documents.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="px-3.5 py-1.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--glass-border)] text-xs font-semibold text-[var(--text-secondary)] shadow-sm">
+                    🎓 2027 A/L Teachers
+                </span>
             </div>
         </div>
-        <div class="max-w-4xl mx-auto pt-8 pb-12">
-            <div class="text-center mb-12">
-                <h1 class="text-4xl font-bold text-[var(--text-primary)] mb-4">Interactive Simulations</h1>
-                <p class="text-lg text-[var(--text-secondary)]">Choose a subject to dive into our immersive learning environments.</p>
-            </div>
-            
-            <div class="grid md:grid-cols-2 gap-8">
-                <!-- Physics Card -->
-                <div onclick="alert('ඉදිරියේදි මෙය ඔබට ලැබෙනු ඇත')" class="smart-card cursor-pointer group hover:border-blue-500 transition-all text-center p-12 flex flex-col items-center">
-                    <div class="text-8xl mb-6 group-hover:scale-110 transition-transform">⚛️</div>
-                    <h2 class="text-3xl font-bold text-[var(--text-primary)] mb-2">Physics</h2>
-                    <p class="text-[var(--text-secondary)]">Explore mechanics, waves, and quantum phenomena.</p>
-                </div>
-                
-                <!-- Chemistry Card -->
-                <div id="chemistry-card" class="smart-card cursor-pointer group hover:border-cyan-500 transition-all text-center p-12 flex flex-col items-center relative overflow-hidden">
-                    <div id="chemistry-initial">
-                        <div class="text-8xl mb-6 group-hover:scale-110 transition-transform">🧪</div>
-                        <h2 class="text-3xl font-bold text-[var(--text-primary)] mb-2">Chemistry</h2>
-                        <p class="text-[var(--text-secondary)]">Master reactions, organic conversions, and physical chemistry.</p>
+
+        <!-- 2027 Subject Cards Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 justify-center">
+            ${TUTE_TEACHERS_2027.map(t => `
+                <div class="smart-card p-0 overflow-hidden cursor-pointer group flex flex-col hover:border-indigo-500/60 transition-all duration-300 transform hover:-translate-y-1 shadow-lg" onclick="navigateTo('/tutes/${t.id}')">
+                    <div class="h-32 sm:h-52 overflow-hidden relative bg-black/20">
+                        <img src="${t.img}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent"></div>
+                        <span class="absolute top-2 right-2 px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-md text-[10px] font-bold text-white uppercase tracking-wider border border-white/10">
+                            ${t.icon} 2027
+                        </span>
                     </div>
-                    
-                    <div id="chemistry-sub" class="absolute inset-0 bg-[var(--bg-secondary)] flex flex-col items-center justify-center translate-y-full transition-transform duration-300">
-                        <h3 class="text-2xl font-bold text-[var(--text-primary)] mb-6">Select Sub-Topic</h3>
-                        <div class="flex gap-4">
-                            <button onclick="navigateTo('/organicgame')" class="btn-primary py-3 px-6 rounded-xl flex items-center gap-2 text-lg">
-                                <span>⬡</span> Organic Chemistry
-                            </button>
+                    <div class="p-3 md:p-5 flex-1 flex flex-col justify-between text-center bg-[var(--bg-secondary)]">
+                        <div>
+                            <span class="text-[10px] md:text-xs font-bold uppercase tracking-wider text-${t.color}-400 mb-1 block">${t.subject}</span>
+                            <h3 class="text-xs md:text-lg font-bold text-[var(--text-primary)] group-hover:text-indigo-400 transition-colors line-clamp-2">${t.name}</h3>
                         </div>
-                        <button id="chemistry-back" class="mt-8 text-[var(--text-secondary)] hover:text-[var(--text-primary)] underline">Back</button>
+                        <div class="mt-3 pt-3 border-t border-[var(--glass-border)] flex items-center justify-center gap-1.5 text-xs text-indigo-400 font-semibold group-hover:translate-x-0.5 transition-transform">
+                            <span>Open Tutes</span>
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                        </div>
                     </div>
+                </div>
+            `).join('')}
+        </div>
+    </div>
+  `;
+}
+
+/**
+ * Render individual subject's Tutes page with lessons and PDF uploads
+ */
+export async function renderTuteSubject(subjectId, navigateTo, currentUser) {
+  const appContainer = document.getElementById('app-container');
+  if (!appContainer) return;
+
+  const teacher = TUTE_TEACHERS_2027.find(t => t.id === subjectId) || TUTE_TEACHERS_2027[0];
+  const isAdminOrMod = await checkIsAdminOrMod(currentUser);
+
+  // Initial loading placeholder
+  appContainer.innerHTML = `
+    <div class="max-w-5xl mx-auto pt-8 pb-16 px-4">
+        <div class="flex items-center gap-3 mb-6 text-sm">
+            <button onclick="navigateTo('/tutes')" class="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-semibold transition-colors cursor-pointer">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                <span>All Subjects</span>
+            </button>
+            <span class="text-[var(--text-secondary)] opacity-50">/</span>
+            <span class="text-[var(--text-primary)] font-bold">${teacher.subject} (${teacher.name})</span>
+        </div>
+        <div class="animate-pulse space-y-4">
+            <div class="h-28 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--glass-border)]"></div>
+            <div class="h-40 bg-[var(--bg-secondary)] rounded-2xl border border-[var(--glass-border)]"></div>
+        </div>
+    </div>
+  `;
+
+  // Fetch Lessons and Tute Documents from Firestore
+  let lessons = [];
+  let tuteDocs = [];
+
+  try {
+    const lessonsQuery = query(collection(db, 'tuteLessons'), where('subjectId', '==', subjectId));
+    const lessonsSnap = await getDocs(lessonsQuery);
+    lessonsSnap.forEach(d => lessons.push({ id: d.id, ...d.data() }));
+    // In-memory sort by order or creation
+    lessons.sort((a, b) => {
+      const orderA = a.order !== undefined && a.order !== null ? Number(a.order) : 9999;
+      const orderB = b.order !== undefined && b.order !== null ? Number(b.order) : 9999;
+      if (orderA !== orderB) return orderA - orderB;
+      const timeA = a.timestamp || (a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0) || 0;
+      const timeB = b.timestamp || (b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0) || 0;
+      return timeA - timeB;
+    });
+
+    const docsQuery = query(collection(db, 'tuteDocuments'), where('subjectId', '==', subjectId));
+    const docsSnap = await getDocs(docsQuery);
+    docsSnap.forEach(d => tuteDocs.push({ id: d.id, ...d.data() }));
+    // Sort docs by timestamp descending (newest first within each lesson)
+    tuteDocs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  } catch (err) {
+    console.error("Error fetching tutes and lessons:", err);
+  }
+
+  // Group docs by lessonId
+  const docsByLesson = {};
+  tuteDocs.forEach(d => {
+    if (!docsByLesson[d.lessonId]) docsByLesson[d.lessonId] = [];
+    docsByLesson[d.lessonId].push(d);
+  });
+
+  // Render Full View
+  appContainer.innerHTML = `
+    <div class="max-w-5xl mx-auto pt-6 pb-20 px-4">
+        <!-- Breadcrumb Navigation -->
+        <div class="flex items-center justify-between gap-3 mb-6">
+            <button onclick="navigateTo('/tutes')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--bg-secondary)] hover:bg-[var(--glass-border)] text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-semibold transition-all cursor-pointer border border-[var(--glass-border)] shadow-sm">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                <span>Back to All Subjects</span>
+            </button>
+
+            ${isAdminOrMod ? `
+                <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                        <span>🛡️</span>
+                        <span>Admin/Mod Mode</span>
+                    </span>
+                    <button onclick="window.openAddTuteLessonModal('${subjectId}')" class="btn-primary py-1.5 px-3.5 text-xs sm:text-sm font-bold flex items-center gap-1.5 rounded-xl shadow-lg shadow-indigo-600/25">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                        <span>Add Lesson</span>
+                    </button>
+                </div>
+            ` : ''}
+        </div>
+
+        <!-- Subject & Teacher Banner Card -->
+        <div class="smart-card p-5 sm:p-6 mb-8 relative overflow-hidden bg-gradient-to-r from-[var(--bg-secondary)] via-[var(--bg-secondary)] to-indigo-950/20 border border-[var(--glass-border)]">
+            <div class="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 text-center sm:text-left">
+                <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-2 border-indigo-500/40 shadow-xl shrink-0">
+                    <img src="${teacher.img}" class="w-full h-full object-cover">
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1">
+                        <span class="px-2.5 py-0.5 rounded-md text-[11px] font-extrabold uppercase tracking-wider text-${teacher.color}-400 bg-${teacher.color}-500/10 border border-${teacher.color}-500/20">
+                            ${teacher.subject}
+                        </span>
+                        <span class="px-2.5 py-0.5 rounded-md text-[11px] font-bold text-indigo-300 bg-indigo-500/10 border border-indigo-500/20">
+                            2027 A/L
+                        </span>
+                        <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold text-[var(--text-secondary)] bg-[var(--bg-root)]">
+                            ${lessons.length} ${lessons.length === 1 ? 'Lesson' : 'Lessons'} • ${tuteDocs.length} ${tuteDocs.length === 1 ? 'Tute' : 'Tutes'}
+                        </span>
+                    </div>
+                    <h1 class="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">${teacher.name}</h1>
+                    <p class="text-xs sm:text-sm text-[var(--text-secondary)] mt-1 max-w-xl">
+                        Access all official lesson tutorials, theory materials and worksheets. You can view, download, or read captions below.
+                    </p>
                 </div>
             </div>
         </div>
+
+        <!-- Lessons Container -->
+        <div class="space-y-6">
+            ${lessons.length === 0 ? `
+                <div class="smart-card p-10 text-center border-dashed border-2 border-[var(--glass-border)] bg-transparent">
+                    <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center mx-auto mb-4 text-3xl">
+                        📂
+                    </div>
+                    <h3 class="text-lg font-bold text-[var(--text-primary)] mb-1">No Lessons Created Yet</h3>
+                    <p class="text-xs sm:text-sm text-[var(--text-secondary)] max-w-md mx-auto mb-5">
+                        There are no tutorial lessons available for this subject yet.
+                    </p>
+                    ${isAdminOrMod ? `
+                        <button onclick="window.openAddTuteLessonModal('${subjectId}')" class="btn-primary py-2.5 px-5 font-bold text-sm inline-flex items-center gap-2 rounded-xl shadow-lg">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                            <span>Create First Lesson</span>
+                        </button>
+                    ` : ''}
+                </div>
+            ` : lessons.map((lesson, idx) => {
+                const lessonTutes = docsByLesson[lesson.id] || [];
+                return `
+                    <div class="smart-card p-5 sm:p-6 border border-[var(--glass-border)] hover:border-indigo-500/30 transition-all shadow-md">
+                        <!-- Lesson Header -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[var(--glass-border)]">
+                            <div>
+                                <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                    <span class="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300 font-black text-xs inline-flex items-center justify-center border border-indigo-500/30">
+                                        ${lesson.order !== undefined && lesson.order !== null && lesson.order !== '' ? lesson.order : (idx + 1)}
+                                    </span>
+                                    <h2 class="text-base sm:text-lg font-extrabold text-[var(--text-primary)]">${escapeHTML(lesson.title || 'Untitled Lesson')}</h2>
+                                    <span class="text-[11px] px-2 py-0.5 rounded-full bg-[var(--bg-root)] border border-[var(--glass-border)] text-[var(--text-secondary)] font-medium">
+                                        ${lessonTutes.length} ${lessonTutes.length === 1 ? 'PDF' : 'PDFs'}
+                                    </span>
+                                </div>
+                                ${lesson.description ? `<p class="text-xs text-[var(--text-secondary)] mt-0.5 pl-8">${escapeHTML(lesson.description)}</p>` : ''}
+                            </div>
+
+                            <!-- Admin Actions for Lesson -->
+                            ${isAdminOrMod ? `
+                                <div class="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                                    <button onclick="window.openUploadTutePdfModal('${lesson.id}', '${escapeHTML((lesson.title || 'Lesson').replace(/'/g, "\\'"))}', '${subjectId}')" class="px-3 py-1.5 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 text-white text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-sm cursor-pointer">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                                        <span>Upload PDF</span>
+                                    </button>
+                                    <button onclick="window.deleteTuteLesson('${lesson.id}', '${subjectId}')" class="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all text-xs cursor-pointer" title="Delete Lesson">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
+                                    </button>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- Lesson PDFs List -->
+                        <div class="mt-4 space-y-3">
+                            ${lessonTutes.length === 0 ? `
+                                <div class="p-4 rounded-xl bg-[var(--bg-root)] border border-dashed border-[var(--glass-border)] text-center text-xs text-[var(--text-secondary)]">
+                                    <span>No PDF tutorials uploaded for this lesson yet.</span>
+                                    ${isAdminOrMod ? `<button onclick="window.openUploadTutePdfModal('${lesson.id}', '${escapeHTML((lesson.title || 'Lesson').replace(/'/g, "\\'"))}', '${subjectId}')" class="text-indigo-400 hover:underline font-bold ml-1.5">Upload one now</button>` : ''}
+                                </div>
+                            ` : lessonTutes.map(doc => {
+                                const safeFileName = escapeHTML(doc.fileName || doc.title || 'Tutorial.pdf');
+                                const formattedSize = doc.fileSize ? formatFileSize(doc.fileSize) : 'PDF Document';
+                                const fileUrl = sanitizeUrl(doc.mediaUrl);
+                                const hasCaption = !!(doc.caption && doc.caption.trim());
+                                const safeCaption = hasCaption ? escapeHTML(doc.caption.trim()) : '';
+
+                                return `
+                                    <div class="p-3.5 sm:p-4 rounded-xl bg-[var(--bg-root)] border border-[var(--glass-border)] hover:border-indigo-500/40 transition-all flex flex-col gap-2.5">
+                                        <div class="flex items-start sm:items-center justify-between gap-3">
+                                            <!-- PDF Identity -->
+                                            <div class="flex items-center gap-3 min-w-0 flex-1">
+                                                <div class="w-10 h-11 sm:w-11 sm:h-12 rounded-xl bg-gradient-to-br from-rose-500 to-red-700 flex flex-col items-center justify-center text-white shadow-md shrink-0">
+                                                    <span class="text-[7.5px] font-black tracking-wider uppercase">PDF</span>
+                                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+                                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                                    </svg>
+                                                </div>
+                                                <div class="min-w-0 flex-1">
+                                                    <h4 class="text-xs sm:text-sm font-bold text-[var(--text-primary)] truncate" title="${safeFileName}">${safeFileName}</h4>
+                                                    <div class="flex items-center gap-2 text-[10px] sm:text-[11px] text-[var(--text-secondary)] opacity-80 mt-0.5">
+                                                        <span>${formattedSize}</span>
+                                                        ${doc.createdAtMs ? `<span>• ${new Date(doc.createdAtMs).toLocaleDateString()}</span>` : ''}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Actions Toolbar -->
+                                            <div class="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                                                <!-- View PDF -->
+                                                <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1.5 rounded-lg bg-[var(--bg-secondary)] hover:bg-indigo-600/20 text-indigo-300 hover:text-white transition-all text-xs font-semibold inline-flex items-center gap-1 border border-[var(--glass-border)] cursor-pointer" title="Open PDF in new tab">
+                                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+                                                    <span class="hidden sm:inline">View</span>
+                                                </a>
+
+                                                <!-- Download PDF -->
+                                                <button type="button" onclick="window.downloadPdfFile('${fileUrl}', '${safeFileName.replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg bg-emerald-600/80 hover:bg-emerald-600 text-white transition-all text-xs font-semibold inline-flex items-center gap-1 shadow-sm cursor-pointer" title="Download to device">
+                                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                                                    <span class="hidden sm:inline">Download</span>
+                                                </button>
+
+                                                <!-- Admin/Moderator Forward & Delete Buttons -->
+                                                ${isAdminOrMod ? `
+                                                    <!-- Forward to Chat -->
+                                                    <button type="button" onclick="window.openForwardTuteToChatModal('${doc.id}', '${safeFileName.replace(/'/g, "\\'")}', ${doc.fileSize || 0}, '${fileUrl}', '${safeCaption.replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-300 hover:text-indigo-100 transition-all text-xs font-bold inline-flex items-center gap-1 border border-indigo-500/30 cursor-pointer shadow-sm" title="Forward this PDF to Community Chat">
+                                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                                        <span>Forward to Chat</span>
+                                                    </button>
+
+                                                    <!-- Delete PDF -->
+                                                    <button type="button" onclick="window.deleteTuteDocument('${doc.id}', '${subjectId}')" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all text-xs cursor-pointer" title="Delete PDF document">
+                                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6"/></svg>
+                                                    </button>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+
+                                        <!-- Caption Display -->
+                                        ${hasCaption ? `
+                                            <div class="px-3 py-2 rounded-lg bg-[var(--bg-secondary)] border border-[var(--glass-border)] text-xs text-[var(--text-secondary)] leading-relaxed flex items-start gap-2">
+                                                <span class="text-indigo-400 font-bold shrink-0">💬 Caption:</span>
+                                                <span class="text-[var(--text-primary)] font-medium whitespace-pre-wrap break-words">${safeCaption}</span>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    </div>
+  `;
+
+  // Bind Global Window Modals & Actions for Tutes Management
+  window.openAddTuteLessonModal = (subjId) => {
+    const existing = document.getElementById('add-tute-lesson-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'add-tute-lesson-modal';
+    modal.className = 'fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in';
+    modal.innerHTML = `
+      <div class="smart-card w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--glass-border)] shadow-2xl p-6 relative">
+          <div class="flex items-center justify-between mb-4 pb-3 border-b border-[var(--glass-border)]">
+              <h3 class="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+                  <span>📚</span>
+                  <span>Add New Lesson</span>
+              </h3>
+              <button onclick="document.getElementById('add-tute-lesson-modal').remove()" class="text-[var(--text-secondary)] hover:text-white text-xl cursor-pointer">&times;</button>
+          </div>
+          
+          <form id="create-lesson-form" class="space-y-4">
+              <div>
+                  <label class="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Lesson Title / පාඩමේ නම *</label>
+                  <input type="text" id="lesson-title-input" class="w-full px-3.5 py-2.5 rounded-xl bg-[var(--bg-root)] border border-[var(--glass-border)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-indigo-500" placeholder="e.g. 01. සංකීර්ණ සංඛ්‍යා (Complex Numbers)" required autofocus>
+              </div>
+
+              <div>
+                  <label class="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Order / අංකය (Optional)</label>
+                  <input type="number" id="lesson-order-input" class="w-full px-3.5 py-2.5 rounded-xl bg-[var(--bg-root)] border border-[var(--glass-border)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-indigo-500" placeholder="${lessons.length + 1}" value="${lessons.length + 1}">
+              </div>
+
+              <div>
+                  <label class="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Short Description / සටහන (Optional)</label>
+                  <textarea id="lesson-desc-input" rows="2" class="w-full px-3.5 py-2.5 rounded-xl bg-[var(--bg-root)] border border-[var(--glass-border)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-indigo-500" placeholder="e.g. Theory & revision questions discussion"></textarea>
+              </div>
+
+              <div class="flex items-center justify-end gap-2 pt-2">
+                  <button type="button" onclick="document.getElementById('add-tute-lesson-modal').remove()" class="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--glass-border)] cursor-pointer">Cancel</button>
+                  <button type="submit" id="submit-lesson-btn" class="btn-primary px-5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 cursor-pointer shadow-lg">
+                      <span>Create Lesson</span>
+                  </button>
+              </div>
+          </form>
+      </div>
     `;
 
-  document.getElementById('chemistry-card').onclick = (e) => {
-    if (e.target.closest('#chemistry-back') || e.target.closest('button')) return;
-    document.getElementById('chemistry-sub').classList.remove('translate-y-full');
+    document.body.appendChild(modal);
+
+    const form = modal.querySelector('#create-lesson-form');
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('lesson-title-input').value.trim();
+      const order = Number(document.getElementById('lesson-order-input').value) || (lessons.length + 1);
+      const desc = document.getElementById('lesson-desc-input').value.trim();
+      const btn = document.getElementById('submit-lesson-btn');
+
+      if (!title) return alert("Please enter lesson title.");
+
+      btn.disabled = true;
+      btn.innerHTML = `<span class="animate-spin">⏳</span> Creating...`;
+
+      try {
+        await addDoc(collection(db, 'tuteLessons'), {
+          subjectId: subjId,
+          title: sanitizeInput(title),
+          order: order,
+          description: sanitizeInput(desc),
+          createdBy: currentUser.uid,
+          createdAt: serverTimestamp(),
+          timestamp: Date.now()
+        });
+        modal.remove();
+        showTuteToast("Lesson created successfully! 🎉");
+        await renderTuteSubject(subjId, navigateTo, currentUser);
+      } catch (err) {
+        console.error("Error creating lesson:", err);
+        alert("Failed to create lesson: " + err.message);
+        btn.disabled = false;
+        btn.innerHTML = `<span>Create Lesson</span>`;
+      }
+    };
   };
-  
-  document.getElementById('chemistry-back').onclick = (e) => {
-    e.stopPropagation();
-    document.getElementById('chemistry-sub').classList.add('translate-y-full');
+
+  // Upload PDF Modal
+  window.openUploadTutePdfModal = (lessonId, lessonTitle, subjId) => {
+    const existing = document.getElementById('upload-tute-pdf-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'upload-tute-pdf-modal';
+    modal.className = 'fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in';
+    modal.innerHTML = `
+      <div class="smart-card w-full max-w-lg bg-[var(--bg-secondary)] border border-[var(--glass-border)] shadow-2xl p-6 relative">
+          <div class="flex items-center justify-between mb-4 pb-3 border-b border-[var(--glass-border)]">
+              <div>
+                  <h3 class="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+                      <span>📄</span>
+                      <span>Upload Tutorial PDF</span>
+                  </h3>
+                  <p class="text-xs text-indigo-400 font-semibold mt-0.5 truncate max-w-sm">For: ${escapeHTML(lessonTitle)}</p>
+              </div>
+              <button onclick="document.getElementById('upload-tute-pdf-modal').remove()" class="text-[var(--text-secondary)] hover:text-white text-xl cursor-pointer">&times;</button>
+          </div>
+
+          <form id="upload-tute-form" class="space-y-4">
+              <!-- File Picker -->
+              <div>
+                  <label class="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Select PDF File (.pdf, max 25MB) *</label>
+                  <label for="tute-file-picker" class="flex flex-col items-center justify-center p-5 rounded-2xl border-2 border-dashed border-[var(--glass-border)] hover:border-indigo-500 bg-[var(--bg-root)] cursor-pointer transition-colors group">
+                      <div class="w-12 h-12 rounded-xl bg-indigo-500/10 group-hover:bg-indigo-500/20 text-indigo-400 flex items-center justify-center mb-2 transition-colors">
+                          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                      </div>
+                      <p id="tute-file-name-label" class="text-xs sm:text-sm font-semibold text-[var(--text-primary)] text-center">Click or drag & drop PDF here</p>
+                      <p id="tute-file-size-label" class="text-[11px] text-[var(--text-secondary)] mt-0.5">Maximum size: 25MB</p>
+                  </label>
+                  <input type="file" id="tute-file-picker" accept="application/pdf,.pdf" class="hidden" required>
+              </div>
+
+              <!-- Caption -->
+              <div>
+                  <label class="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Caption / Description (සටහන) *</label>
+                  <textarea id="tute-caption-input" rows="3" class="w-full px-3.5 py-2.5 rounded-xl bg-[var(--bg-root)] border border-[var(--glass-border)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-indigo-500" placeholder="e.g. 1 වන පාඩම සම්පූර්ණ සිද්ධාන්ත නිබන්ධනය සහ පෙරහුරු ගැටලු" required></textarea>
+                  <p class="text-[10px] text-[var(--text-secondary)] mt-1">This caption will be displayed on the tute and included when forwarding to chat.</p>
+              </div>
+
+              <!-- Status Banner -->
+              <div id="tute-upload-status" class="hidden text-xs py-2 px-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 items-center gap-2">
+                  <span class="animate-spin">⏳</span>
+                  <span id="tute-upload-status-text">Uploading to Cloudflare R2...</span>
+              </div>
+
+              <!-- Actions -->
+              <div class="flex items-center justify-end gap-2 pt-2">
+                  <button type="button" onclick="document.getElementById('upload-tute-pdf-modal').remove()" class="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--glass-border)] cursor-pointer">Cancel</button>
+                  <button type="submit" id="submit-tute-upload-btn" class="btn-primary px-5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-indigo-600/30">
+                      <span>Upload & Publish</span>
+                  </button>
+              </div>
+          </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const fileInput = modal.querySelector('#tute-file-picker');
+    const nameLabel = modal.querySelector('#tute-file-name-label');
+    const sizeLabel = modal.querySelector('#tute-file-size-label');
+
+    fileInput.onchange = () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (file) {
+        if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+          alert("Please select a PDF document (.pdf).\nකරුණාකර PDF ගොනුවක් පමණක් තෝරන්න.");
+          fileInput.value = '';
+          return;
+        }
+        if (file.size > 25 * 1024 * 1024) {
+          alert("File exceeds maximum allowed size of 25MB.\nගොනුවේ ප්‍රමාණය 25MB ඉක්මවා ඇත.");
+          fileInput.value = '';
+          return;
+        }
+        nameLabel.textContent = file.name;
+        nameLabel.className = 'text-xs sm:text-sm font-bold text-indigo-400 text-center truncate max-w-xs';
+        sizeLabel.textContent = formatFileSize(file.size);
+      }
+    };
+
+    const form = modal.querySelector('#upload-tute-form');
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const file = fileInput.files && fileInput.files[0];
+      const caption = document.getElementById('tute-caption-input').value.trim();
+      const statusBox = document.getElementById('tute-upload-status');
+      const statusText = document.getElementById('tute-upload-status-text');
+      const btn = document.getElementById('submit-tute-upload-btn');
+
+      if (!file) return alert("Please select a PDF file.");
+      if (!caption) return alert("Please enter a caption for this PDF.");
+
+      btn.disabled = true;
+      statusBox.classList.remove('hidden');
+      statusBox.classList.add('flex');
+      statusText.textContent = "Uploading to Cloudflare R2 storage...";
+
+      try {
+        const rawName = file.name.replace(/\.[^/.]+$/, "");
+        const safeBaseName = sanitizeInput(rawName.replace(/[^\w\s.-]/gi, '_')).slice(0, 80);
+        const safeFileName = `${safeBaseName || 'Tutorial'}.pdf`;
+        const objectKey = `tutes/${subjId}/${lessonId}/${Date.now()}_${safeFileName}`;
+
+        // Direct upload to Cloudflare R2
+        const mediaUrl = await uploadToR2(file, objectKey, 'application/pdf');
+
+        statusText.textContent = "Saving document information...";
+
+        await addDoc(collection(db, 'tuteDocuments'), {
+          subjectId: subjId,
+          lessonId: lessonId,
+          title: safeFileName,
+          fileName: safeFileName,
+          fileSize: file.size,
+          mediaUrl: mediaUrl,
+          caption: sanitizeInput(caption),
+          createdBy: currentUser.uid,
+          createdAt: serverTimestamp(),
+          timestamp: Date.now()
+        });
+
+        modal.remove();
+        showTuteToast("Tutorial PDF uploaded successfully! 📑");
+        await renderTuteSubject(subjId, navigateTo, currentUser);
+      } catch (err) {
+        console.error("Error uploading tute PDF:", err);
+        alert("Failed to upload PDF: " + err.message);
+        btn.disabled = false;
+        statusBox.classList.add('hidden');
+        statusBox.classList.remove('flex');
+      }
+    };
+  };
+
+  // Forward to Chat Modal
+  window.openForwardTuteToChatModal = (docId, fileName, fileSize, mediaUrl, caption) => {
+    const existing = document.getElementById('forward-tute-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'forward-tute-modal';
+    modal.className = 'fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in';
+    modal.innerHTML = `
+      <div class="smart-card w-full max-w-md bg-[var(--bg-secondary)] border border-[var(--glass-border)] shadow-2xl p-6 relative">
+          <div class="flex items-center justify-between mb-4 pb-3 border-b border-[var(--glass-border)]">
+              <h3 class="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+                  <span>💬</span>
+                  <span>Forward to Chat Lounge</span>
+              </h3>
+              <button onclick="document.getElementById('forward-tute-modal').remove()" class="text-[var(--text-secondary)] hover:text-white text-xl cursor-pointer">&times;</button>
+          </div>
+
+          <div class="space-y-4">
+              <!-- PDF Preview Card -->
+              <div class="p-3 rounded-xl bg-[var(--bg-root)] border border-[var(--glass-border)] flex items-center gap-3">
+                  <div class="w-10 h-11 rounded-xl bg-gradient-to-br from-rose-500 to-red-700 flex flex-col items-center justify-center text-white shadow-md shrink-0">
+                      <span class="text-[7px] font-black uppercase">PDF</span>
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  </div>
+                  <div class="min-w-0 flex-1">
+                      <p class="text-xs font-bold text-[var(--text-primary)] truncate">${escapeHTML(fileName)}</p>
+                      <p class="text-[10px] text-[var(--text-secondary)]">${formatFileSize(fileSize)}</p>
+                  </div>
+              </div>
+
+              <!-- Message / Caption Field -->
+              <div>
+                  <label class="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Chat Message / Caption</label>
+                  <textarea id="forward-caption-input" rows="3" class="w-full px-3.5 py-2.5 rounded-xl bg-[var(--bg-root)] border border-[var(--glass-border)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-indigo-500" placeholder="Message to accompany the PDF...">${escapeHTML(caption || '')}</textarea>
+                  <p class="text-[10px] text-[var(--text-secondary)] mt-1">This will be shared in Community Chat Lounge visible to all students.</p>
+              </div>
+
+              <div class="flex items-center justify-end gap-2 pt-2">
+                  <button type="button" onclick="document.getElementById('forward-tute-modal').remove()" class="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--glass-border)] cursor-pointer">Cancel</button>
+                  <button type="button" id="submit-forward-chat-btn" class="btn-primary px-5 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-indigo-600/30">
+                      <span>Send to Chat Lounge 🚀</span>
+                  </button>
+              </div>
+          </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelector('#submit-forward-chat-btn').onclick = async () => {
+      const finalCaption = document.getElementById('forward-caption-input').value.trim();
+      const btn = document.getElementById('submit-forward-chat-btn');
+      btn.disabled = true;
+      btn.innerHTML = `<span class="animate-spin">⏳</span> Sending...`;
+
+      try {
+        const res = await forwardDocumentToChat(currentUser, {
+          fileName,
+          fileSize,
+          mediaUrl,
+          caption: finalCaption
+        });
+
+        if (res.success) {
+          modal.remove();
+          showTuteToast("Tutorial forwarded to Community Chat! 💬", "success", {
+            text: "Open Chat",
+            onClick: () => navigateTo('/chat')
+          });
+        } else {
+          alert("Could not forward to chat: " + (res.error || "Unknown error"));
+          btn.disabled = false;
+          btn.innerHTML = `<span>Send to Chat Lounge 🚀</span>`;
+        }
+      } catch (err) {
+        console.error("Error forwarding tute to chat:", err);
+        alert("Error forwarding to chat: " + err.message);
+        btn.disabled = false;
+        btn.innerHTML = `<span>Send to Chat Lounge 🚀</span>`;
+      }
+    };
+  };
+
+  // Delete Lesson Handler
+  window.deleteTuteLesson = async (lessonId, subjId) => {
+    if (!confirm("Are you sure you want to delete this lesson and all its uploaded PDF tutorials?\nමෙම පාඩම සහ එහි සියලුම PDF මකා දැමීමට ඔබට විශ්වාසද?")) {
+      return;
+    }
+
+    try {
+      // Delete all documents in this lesson
+      const q = query(collection(db, 'tuteDocuments'), where('lessonId', '==', lessonId));
+      const snap = await getDocs(q);
+      const batch = writeBatch(db);
+      snap.forEach(d => batch.delete(d.ref));
+      batch.delete(doc(db, 'tuteLessons', lessonId));
+      await batch.commit();
+
+      showTuteToast("Lesson and its PDFs deleted.");
+      await renderTuteSubject(subjId, navigateTo, currentUser);
+    } catch (err) {
+      console.error("Error deleting lesson:", err);
+      alert("Failed to delete lesson: " + err.message);
+    }
+  };
+
+  // Delete Document Handler
+  window.deleteTuteDocument = async (docId, subjId) => {
+    if (!confirm("Are you sure you want to delete this PDF tutorial?\nමෙම PDF නිබන්ධනය මකා දැමීමට ඔබට විශ්වාසද?")) {
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, 'tuteDocuments', docId));
+      showTuteToast("PDF deleted.");
+      await renderTuteSubject(subjId, navigateTo, currentUser);
+    } catch (err) {
+      console.error("Error deleting tute document:", err);
+      alert("Failed to delete PDF: " + err.message);
+    }
   };
 }
 

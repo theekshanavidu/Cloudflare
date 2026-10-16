@@ -425,6 +425,44 @@ export async function sendPdfMessage(user, file, optionalCaption = '', replyTo =
 }
 
 /**
+ * Forward an existing PDF document / tutorial directly into Community Chat (Admin/Mod)
+ */
+export async function forwardDocumentToChat(user, { fileName, fileSize, mediaUrl, caption = '' }) {
+  if (!user) return { success: false, error: "User authentication required." };
+  if (!mediaUrl) return { success: false, error: "Missing document media URL." };
+
+  const now = Date.now();
+  try {
+    const { senderName, senderPhoto, isPhotoPublic, senderRole } = await getSenderDetails(user);
+    const expireAtTimestamp = now + (30 * 24 * 60 * 60 * 1000);
+
+    const messageDoc = {
+      senderId: user.uid,
+      senderName: sanitizeInput(senderName),
+      senderPhoto: senderPhoto,
+      isPhotoPublic: isPhotoPublic,
+      senderRole: senderRole,
+      messageType: 'document',
+      fileName: sanitizeInput(fileName || 'Tutorial.pdf'),
+      fileSize: fileSize || 0,
+      text: sanitizeInput((caption || '').trim()),
+      mediaUrl: mediaUrl,
+      audioDuration: 0,
+      replyTo: null,
+      createdAt: serverTimestamp(),
+      timestamp: now,
+      expireAt: new Date(expireAtTimestamp)
+    };
+
+    await addDoc(collection(db, 'communityChat'), messageDoc);
+    return { success: true };
+  } catch (e) {
+    console.error("Error forwarding document to chat:", e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
  * Audio Recorder Manager using browser MediaRecorder API
  */
 class VoiceRecorderManager {
