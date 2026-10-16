@@ -40,14 +40,15 @@ self.addEventListener('fetch', (event) => {
     if (!event.request.url.startsWith('http')) return;
 
     const url = event.request.url;
-    // Never intercept Firebase / Firestore / Google APIs / Cloudflare Storage in SW
+    // Never intercept Firebase / Firestore / Google APIs / Cloudflare Storage / API endpoints in SW
     if (url.includes('firestore.googleapis.com') ||
         url.includes('identitytoolkit.googleapis.com') ||
         url.includes('securetoken.googleapis.com') ||
         url.includes('firebasestorage.googleapis.com') ||
         url.includes('apis.google.com') ||
         url.includes('r2.cloudflarestorage.com') ||
-        url.includes('.r2.dev')) {
+        url.includes('.r2.dev') ||
+        url.includes('/api/')) {
         return;
     }
 

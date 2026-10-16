@@ -171,12 +171,45 @@ export async function findExistingUploadedFile(fileBlob, originalFileName = '') 
 }
 
 /**
+ * Attempt upload via same-origin Cloudflare Pages Function (/api/upload).
+ * Because this request is same-origin (https://www.mathsrecoding.com/api/upload),
+ * browser CORS preflight check is bypassed completely!
+ */
+export async function uploadViaPagesFunction(fileBlob, destinationPath, contentType) {
+  try {
+    const formData = new FormData();
+    formData.append('file', fileBlob);
+    formData.append('key', destinationPath);
+    formData.append('contentType', contentType);
+
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.url) {
+        console.log("⚡ Upload succeeded via Cloudflare Pages Function:", data.url);
+        return data.url;
+      }
+    } else {
+      console.warn("Cloudflare Pages /api/upload responded with status:", res.status);
+    }
+  } catch (err) {
+    console.warn("Pages Function /api/upload attempt failed:", err);
+  }
+  return null;
+}
+
+/**
  * Robust Multi-Engine Storage Uploader with Deduplication.
  * Strategy:
  * 0. Deduplication Pre-Check: If exact same file already exists in R2/Storage, immediately reuse its URL!
- * 1. Firebase Storage (Standard Google Cloud Storage with web CORS)
- * 2. Cloudflare R2 (S3-compatible Direct Storage)
- * 3. Base64 Data URL fallback for files under 750KB
+ * 1. Cloudflare Pages Function /api/upload (Same-Origin Serverless Upload -> 100% CORS-Free)
+ * 2. Cloudflare R2 Direct Upload (Browser S3 SigV4)
+ * 3. Firebase Storage (Standard Google Cloud Storage)
+ * 4. Base64 Data URL fallback for files under 750KB
  */
 export async function uploadMediaFile(fileBlob, destinationPath, contentType = 'application/octet-stream', originalFileName = '') {
   let fileHash = null;
@@ -197,20 +230,18 @@ export async function uploadMediaFile(fileBlob, destinationPath, contentType = '
   const errors = [];
   let uploadedUrl = null;
 
-  // 1. First attempt: Firebase Storage
+  // 1. First attempt: Same-origin Cloudflare Pages Function (/api/upload)
   try {
-    const fileRef = storageRef(storage, destinationPath);
-    const snap = await uploadBytes(fileRef, fileBlob, { contentType });
-    const downloadUrl = await getDownloadURL(snap.ref);
-    if (downloadUrl) {
-      uploadedUrl = downloadUrl;
+    const pagesUrl = await uploadViaPagesFunction(fileBlob, destinationPath, contentType);
+    if (pagesUrl) {
+      uploadedUrl = pagesUrl;
     }
-  } catch (fbErr) {
-    console.warn("Firebase Storage upload skipped/failed:", fbErr);
-    errors.push(`Firebase Storage (${fbErr.code || fbErr.message})`);
+  } catch (pfErr) {
+    console.warn("Cloudflare Pages Function upload skipped/failed:", pfErr);
+    errors.push(`Pages Function (${pfErr.message})`);
   }
 
-  // 2. Second attempt: Cloudflare R2
+  // 2. Second attempt: Cloudflare R2 Direct S3 SigV4
   if (!uploadedUrl) {
     try {
       const r2Url = await uploadToR2(fileBlob, destinationPath, contentType);
@@ -218,12 +249,27 @@ export async function uploadMediaFile(fileBlob, destinationPath, contentType = '
         uploadedUrl = r2Url;
       }
     } catch (r2Err) {
-      console.warn("Cloudflare R2 upload skipped/failed:", r2Err);
+      console.warn("Cloudflare R2 direct upload skipped/failed:", r2Err);
       errors.push(`Cloudflare R2 (${r2Err.message})`);
     }
   }
 
-  // 3. Fallback: Data URL if file is small enough for Firestore (< 750KB)
+  // 3. Third attempt: Firebase Storage
+  if (!uploadedUrl) {
+    try {
+      const fileRef = storageRef(storage, destinationPath);
+      const snap = await uploadBytes(fileRef, fileBlob, { contentType });
+      const downloadUrl = await getDownloadURL(snap.ref);
+      if (downloadUrl) {
+        uploadedUrl = downloadUrl;
+      }
+    } catch (fbErr) {
+      console.warn("Firebase Storage upload skipped/failed:", fbErr);
+      errors.push(`Firebase Storage (${fbErr.code || fbErr.message})`);
+    }
+  }
+
+  // 4. Fallback: Data URL if file is small enough for Firestore (< 750KB)
   if (!uploadedUrl && fileBlob.size && fileBlob.size < 750 * 1024) {
     try {
       console.warn("Using local Data URL fallback for small attachment");
