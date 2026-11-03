@@ -157,8 +157,8 @@ async function getSenderDetails(user) {
         senderRole = 'moderator';
       }
 
-      // Privacy Check: Only expose photo if user explicitly set isPhotoPublic to true
-      if (d.isPhotoPublic === true) {
+      // Privacy Check: Only expose photo if user explicitly set isPhotoPublic to true (handles boolean and string 'true')
+      if (d.isPhotoPublic === true || d.isPhotoPublic === 'true') {
         isPhotoPublic = true;
         senderPhoto = d.photoURL || user.photoURL || null;
       }

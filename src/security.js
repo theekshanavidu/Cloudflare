@@ -77,8 +77,8 @@ export function sanitizeUrl(url) {
     return '#';
   }
 
-  // Allow standard safe protocols or relative paths
-  if (/^(https?:\/\/|mailto:|tel:|\/|#)/i.test(trimmed)) {
+  // Allow standard safe protocols, relative paths, and safe base64 image data URLs
+  if (/^(https?:\/\/|mailto:|tel:|\/|#|data:image\/(jpeg|png|webp|gif);base64,)/i.test(trimmed)) {
     return trimmed.replace(/"/g, '&quot;').replace(/'/g, '&#039;');
   }
 

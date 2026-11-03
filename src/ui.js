@@ -6719,7 +6719,7 @@ export async function renderCommunityChat(user, navigateTo) {
     profileSettingsBtn.onclick = async () => {
       const userProfile = await getUserProfile(user.uid);
       const photoURL = userProfile?.photoURL || user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'User')}&background=4f46e5&color=fff`;
-      const isPhotoPublic = userProfile?.isPhotoPublic === true;
+      const isPhotoPublic = (userProfile?.isPhotoPublic === true || userProfile?.isPhotoPublic === 'true');
 
       showFloatingModal(`
         <div class="text-left space-y-4">
@@ -8122,11 +8122,11 @@ export async function renderCommunityChat(user, navigateTo) {
         photoSrc = senderProf?.photoURL || m.senderPhoto || '/icon.png';
       } else if (senderProf && senderProf.isPhotoPublic !== undefined) {
         // If sender profile is loaded, strictly obey their current privacy setting
-        shouldShowPhoto = senderProf.isPhotoPublic === true;
+        shouldShowPhoto = senderProf.isPhotoPublic === true || senderProf.isPhotoPublic === 'true';
         photoSrc = senderProf.photoURL || m.senderPhoto;
       } else {
         // Fallback to message document's snapshot while sender profile is being loaded
-        shouldShowPhoto = m.isPhotoPublic === true;
+        shouldShowPhoto = m.isPhotoPublic === true || m.isPhotoPublic === 'true';
         photoSrc = m.senderPhoto;
       }
 
