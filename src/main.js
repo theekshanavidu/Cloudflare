@@ -1,3 +1,4 @@
+let currentNavigationId = 0;
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { doc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { auth, db, ADMIN_UID } from "./firebase.js";
@@ -9,6 +10,40 @@ import { initGlobalInputProtection } from "./security.js";
 initGlobalInputProtection();
 
 let currentUser = null;
+
+
+// --- Top Route Progress Bar for instant navigation feedback ---
+function startRouteProgressBar() {
+    let bar = document.getElementById('top-route-progress-bar');
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'top-route-progress-bar';
+        bar.style.position = 'fixed';
+        bar.style.top = '0';
+        bar.style.left = '0';
+        bar.style.height = '3px';
+        bar.style.width = '0%';
+        bar.style.background = 'linear-gradient(90deg, #6366f1, #22d3ee, #a855f7)';
+        bar.style.boxShadow = '0 0 10px rgba(99, 102, 241, 0.8), 0 0 5px rgba(34, 211, 238, 0.6)';
+        bar.style.zIndex = '99999';
+        bar.style.transition = 'width 0.25s ease, opacity 0.3s ease';
+        bar.style.pointerEvents = 'none';
+        document.body.appendChild(bar);
+    }
+    bar.style.opacity = '1';
+    bar.style.width = '35%';
+    setTimeout(() => { if (bar && bar.style.opacity === '1') bar.style.width = '80%'; }, 80);
+}
+
+function finishRouteProgressBar() {
+    const bar = document.getElementById('top-route-progress-bar');
+    if (!bar) return;
+    bar.style.width = '100%';
+    setTimeout(() => {
+        bar.style.opacity = '0';
+        setTimeout(() => { bar.style.width = '0%'; }, 300);
+    }, 150);
+}
 
 // --- Router System ---
 function navigateTo(path) {
@@ -23,6 +58,9 @@ function navigateTo(path) {
 }
 
 async function router() {
+    const navId = ++currentNavigationId;
+    const isCurrent = () => navId === currentNavigationId;
+    startRouteProgressBar();
     const path = window.location.pathname === '/' ? '/home' : window.location.pathname;
     try {
         if (path && path !== '/' && path !== '/welcome' && path !== '/login' && path !== '/register' && path !== '/reset-password') {
@@ -81,6 +119,7 @@ async function router() {
     }
 
     setTimeout(async () => {
+        if (!isCurrent()) return;
         // Update Header safely
         try {
             await UI.renderHeader(currentUser, navigateTo, signOut);
@@ -145,6 +184,7 @@ async function router() {
             }
         }
 
+        if (!isCurrent()) return;
         if (path === '/home') {
             await UI.renderHome(currentUser);
             /* ========================================================================= */
@@ -157,6 +197,7 @@ async function router() {
         } else if (path === '/profile') {
             await UI.renderProfile(currentUser);
         } else if (path === '/timetable') {
+            if (!isCurrent()) return;
             await UI.renderTimetable(currentUser);
         } else if (path === '/recordings') {
             const hasAccess = await UI.checkLectureHallAccess(currentUser, navigateTo);
@@ -166,8 +207,10 @@ async function router() {
                 return;
             }
         } else if (path === '/live') {
+            if (!isCurrent()) return;
             await UI.renderLiveClasses(currentUser, navigateTo);
         } else if (path === '/chat') {
+            if (!isCurrent()) return;
             await UI.renderCommunityChat(currentUser, navigateTo);
         } else if (path === '/adminpanel') {
             if (currentUser.uid === ADMIN_UID) {
@@ -177,8 +220,10 @@ async function router() {
                 navigateTo('/home');
             }
         } else if (path === '/tutes') {
+            if (!isCurrent()) return;
             await UI.renderTutes(navigateTo, currentUser);
         } else if (path.startsWith('/tutes/')) {
+            if (!isCurrent()) return;
             const parts = path.split('/');
             const subjectId = parts[2];
             await UI.renderTuteSubject(subjectId, navigateTo, currentUser);
@@ -204,21 +249,25 @@ async function router() {
             }
         }
 
+                if (!isCurrent()) return;
         animatePageIn();
         UI.updateMobileNav(path);
-    }, 150);
+    }, 15);
 }
 
 function animatePageIn() {
+    finishRouteProgressBar();
     const container = document.getElementById('app-container');
+    if (!container) return;
+    container.style.transition = 'none';
     container.style.opacity = '0';
-    container.style.transform = 'translateY(20px)';
+    container.style.transform = 'translateY(10px) scale(0.995)';
 
-    setTimeout(() => {
-        container.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+    requestAnimationFrame(() => {
+        container.style.transition = 'opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
         container.style.opacity = '1';
-        container.style.transform = 'translateY(0)';
-    }, 50);
+        container.style.transform = 'translateY(0) scale(1)';
+    });
 }
 
 // --- Service Worker & Push Permissions ---

@@ -2121,19 +2121,44 @@ export async function renderTimetable(user) {
     if (h === 12) return '12 PM';
     return h > 12 ? `${h - 12} PM` : `${h} AM`;
   };
-
-  // Check cache first (user-specific)
-  let data;
+  // Instant 0ms cache-first rendering: check in-memory cache, then persistent localStorage
+  let data = timetableCache[user.uid];
   const now = Date.now();
-  if (timetableCache[user.uid] && (now - timetableCacheTime[user.uid] < CACHE_DURATION)) {
-    data = timetableCache[user.uid];
-  } else {
-    const docRef = doc(db, "timetable", user.uid);
-    const snap = await getDoc(docRef);
-    data = snap.exists() ? snap.data() : {};
-    timetableCache[user.uid] = data;
-    timetableCacheTime[user.uid] = now;
+  if (!data) {
+    try {
+      const saved = localStorage.getItem('study_timetable_' + user.uid);
+      if (saved) {
+        data = JSON.parse(saved);
+        timetableCache[user.uid] = data;
+        timetableCacheTime[user.uid] = now;
+      }
+    } catch(e) {}
   }
+
+  // Fallback to empty object so table renders in 0ms without waiting for network!
+  if (!data) data = {};
+
+  // Background fetch to sync with Firestore without blocking the UI
+  const docRef = doc(db, "timetable", user.uid);
+  getDoc(docRef).then(snap => {
+    if (snap.exists()) {
+      const fresh = snap.data();
+      timetableCache[user.uid] = fresh;
+      timetableCacheTime[user.uid] = Date.now();
+      try { localStorage.setItem('study_timetable_' + user.uid, JSON.stringify(fresh)); } catch(e) {}
+      if (window.location.pathname === '/timetable') {
+        hours.forEach(h => days.forEach((d, i) => {
+          const k = `tt_${i}_${h}`;
+          const el = document.getElementById(k);
+          if (el && fresh[k] !== undefined && document.activeElement !== el) {
+            el.value = fresh[k] || '';
+          }
+        }));
+      }
+    }
+  }).catch(e => console.warn("Timetable background fetch error:", e));
+
+  if (window.location.pathname !== '/timetable') return;
 
   appContainer.innerHTML = `
         <div class="max-w-7xl mx-auto pt-8 pb-16">
@@ -2196,6 +2221,7 @@ export async function renderTimetable(user) {
         await setDoc(docRef, newData);
         timetableCache[user.uid] = newData;
         timetableCacheTime[user.uid] = Date.now();
+        try { localStorage.setItem('study_timetable_' + user.uid, JSON.stringify(newData)); } catch(e) {}
         alert("Timetable Saved Successfully! \nකාලසටහන සාර්ථකව සුරැකිණි!");
     } catch (e) {
         console.error(e);
