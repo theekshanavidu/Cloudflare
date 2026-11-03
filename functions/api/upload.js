@@ -1,13 +1,28 @@
 // Cloudflare Pages Function: /api/upload
-// Same-origin serverless proxy to upload files directly to Cloudflare R2 without browser CORS restrictions
+// Same-origin serverless proxy to upload files directly to Cloudflare R2 securely
 
-const R2_CONFIG = {
+const DEFAULT_R2_CONFIG = {
   accountId: 'dd332ab406cfff738014fda692d2a7e9',
   accessKeyId: '72f8091895ab5437564939505059b2ef',
   secretAccessKey: '843f978d07fb7ad00f27cceb818d23a81ee9cd23a15441d4a7594c5d87e7e085',
   publicUrl: 'https://pub-17ddb0e017e24d14af7f3558fe6f1892.r2.dev',
   bucketName: 'chat-storage'
 };
+
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'application/pdf',
+  'audio/webm',
+  'audio/mp4',
+  'audio/ogg',
+  'audio/mpeg',
+  'application/octet-stream'
+]);
+
+const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
 
 function bufferToHex(buffer) {
   return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -26,21 +41,62 @@ async function hmacSha256(key, data) {
   return await crypto.subtle.sign('HMAC', cryptoKey, dataBuffer);
 }
 
+function sanitizeObjectKey(key) {
+  if (!key || typeof key !== 'string') return null;
+  // Remove path traversal, leading slashes and unsafe characters
+  let cleanKey = key.replace(/\\/g, '/').replace(/\.\.+/g, '').replace(/^\/+/, '');
+  cleanKey = cleanKey.replace(/[^a-zA-Z0-9_\-\.\/]/g, '_');
+  return cleanKey || null;
+}
+
 export async function onRequestPost(context) {
   try {
     const formData = await context.request.formData();
     const file = formData.get('file');
-    const objectKey = formData.get('key');
-    const contentType = formData.get('contentType') || (file && file.type) || 'application/octet-stream';
+    const rawKey = formData.get('key');
+    const requestedContentType = formData.get('contentType');
 
-    if (!file || !objectKey) {
+    if (!file || !rawKey) {
       return new Response(JSON.stringify({ error: 'Missing file or object key' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    const { accountId, accessKeyId, secretAccessKey, publicUrl, bucketName } = R2_CONFIG;
+    // Enforce file size limit (25MB)
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      return new Response(JSON.stringify({ error: 'File size exceeds maximum allowed limit (25MB)' }), {
+        status: 413,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Sanitize object key
+    const objectKey = sanitizeObjectKey(rawKey);
+    if (!objectKey) {
+      return new Response(JSON.stringify({ error: 'Invalid object key specified' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Determine and validate Content-Type
+    const contentType = requestedContentType || (file && file.type) || 'application/octet-stream';
+    if (!ALLOWED_MIME_TYPES.has(contentType.toLowerCase())) {
+      return new Response(JSON.stringify({ error: 'Unsupported file type' }), {
+        status: 415,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Resolve R2 config from Cloudflare Pages environment variables, fallback to defaults
+    const env = context.env || {};
+    const accountId = env.R2_ACCOUNT_ID || DEFAULT_R2_CONFIG.accountId;
+    const accessKeyId = env.R2_ACCESS_KEY_ID || DEFAULT_R2_CONFIG.accessKeyId;
+    const secretAccessKey = env.R2_SECRET_ACCESS_KEY || DEFAULT_R2_CONFIG.secretAccessKey;
+    const publicUrl = (env.R2_PUBLIC_URL || DEFAULT_R2_CONFIG.publicUrl).replace(/\/$/, '');
+    const bucketName = env.R2_BUCKET_NAME || DEFAULT_R2_CONFIG.bucketName;
+
     const host = `${accountId}.r2.cloudflarestorage.com`;
 
     const arrayBuffer = await file.arrayBuffer();
@@ -83,22 +139,22 @@ export async function onRequestPost(context) {
     });
 
     if (!res.ok) {
-      const errText = await res.text();
+      const errText = await res.text().catch(() => '');
       return new Response(JSON.stringify({ error: `R2 returned ${res.status}: ${errText}` }), {
         status: 502,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        headers: { 'Content-Type': 'application/json' }
       });
     }
 
     const finalUrl = `${publicUrl}/${objectKey}`;
     return new Response(JSON.stringify({ success: true, url: finalUrl }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      headers: { 'Content-Type': 'application/json' }
     });
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      headers: { 'Content-Type': 'application/json' }
     });
   }
 }
@@ -109,7 +165,7 @@ export async function onRequestOptions() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': '*'
+      'Access-Control-Allow-Headers': 'Content-Type'
     }
   });
 }

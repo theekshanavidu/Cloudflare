@@ -20,6 +20,21 @@ import { uploadToR2 } from "./r2.js";
 /**
  * Clean and preserve real user file name (supporting Sinhala, Tamil, English, and all Unicode)
  */
+export function isTrustedStorageUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.hostname.endsWith('.r2.dev') ||
+      parsed.hostname.endsWith('firebasestorage.googleapis.com') ||
+      parsed.hostname === 'www.mathsrecoding.com' ||
+      parsed.hostname === 'mathsrecoding.com'
+    );
+  } catch (e) {
+    return false;
+  }
+}
+
 export function getCleanFileName(fileName, fallback = 'Document.pdf') {
   if (!fileName || typeof fileName !== 'string') return fallback;
   // Remove control and path traversal characters
@@ -82,7 +97,7 @@ export async function findExistingUploadedFile(fileBlob, originalFileName = '') 
       const regSnap = await getDoc(regDocRef);
       if (regSnap.exists()) {
         const data = regSnap.data();
-        if (data && data.mediaUrl) {
+        if (data && data.mediaUrl && isTrustedStorageUrl(data.mediaUrl)) {
           console.log(`⚡ [Storage Deduplication] Exact SHA-256 match found in registry: ${hash} -> ${data.mediaUrl}`);
           return {
             mediaUrl: data.mediaUrl,

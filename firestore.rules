@@ -46,7 +46,19 @@ service cloud.firestore {
 
     // ================= USERS =================
     match /users/{userId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      // Users can only update their own profile, and cannot grant themselves moderator/editor privileges
+      allow update: if isAuthenticated() && (
+        isAdmin() || (
+          request.auth.uid == userId &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'role', 'isModerator', 'canPostLectureHall', 'isLectureHallEditor'
+          ])
+        )
+      );
+      // Strictly only Admin can delete user documents
+      allow delete: if isAdmin();
     }
 
     // ================= NOTIFICATIONS =================
@@ -63,13 +75,15 @@ service cloud.firestore {
 
     // ================= STUDY LOGS =================
     match /studyLogs/{logId} {
-      allow read, create, update: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
       allow delete: if isAdmin();
     }
 
     // ================= TIME TABLE =================
     match /timetable/{userId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
     }
 
     // ================= RECORDINGS =================
@@ -127,7 +141,8 @@ service cloud.firestore {
     // ================= CONTACT MESSAGES =================
     match /contactMessages/{document=**} {
       allow create: if true;
-      allow read, update, delete: if isAuthenticated();
+      // Strictly restricted to Admin to protect visitor and student PII
+      allow read, update, delete: if isAdmin();
     }
 
     // ================= CHEMISTRY SCORES =================
@@ -164,8 +179,12 @@ service cloud.firestore {
 
     // ================= FILE REGISTRY (Deduplication) =================
     match /fileRegistry/{hashId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      // Ensure mediaUrl points to valid R2 or Firebase storage buckets, preventing arbitrary URL injection
+      allow create, update: if isAuthenticated() && 
+        request.resource.data.mediaUrl is string &&
+        request.resource.data.mediaUrl.matches('https://(pub-[a-zA-Z0-9_-]+\\.r2\\.dev|firebasestorage\\.googleapis\\.com)/.*');
+      allow delete: if isAdmin();
     }
   }
 }
-

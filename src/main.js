@@ -171,7 +171,7 @@ async function router() {
             await UI.renderCommunityChat(currentUser, navigateTo);
         } else if (path === '/adminpanel') {
             if (currentUser.uid === ADMIN_UID) {
-                await UI.renderAdmin(currentUser);
+                window.location.href = "https://admin.mathsrecoding.com";
             } else {
                 alert("Access Denied");
                 navigateTo('/home');
