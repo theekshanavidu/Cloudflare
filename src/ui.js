@@ -8129,9 +8129,9 @@ export async function renderCommunityChat(user, navigateTo) {
           <div class="chat-reply-quote" onclick="window.jumpToChatMessage('${replyTargetId}')" title="Click to view quoted message">
               <p class="font-bold text-indigo-300 text-[10px] truncate flex items-center gap-1">
                   <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>
-                  <span>@${sender}</span>
+                  <span>@${escapeHTML(sender)}</span>
               </p>
-              <p class="text-[11px] opacity-85 truncate text-[var(--text-primary)] mt-0.5">${snippet}</p>
+              <p class="text-[11px] opacity-85 truncate text-[var(--text-primary)] mt-0.5">${escapeHTML(snippet)}</p>
           </div>
         `;
       }

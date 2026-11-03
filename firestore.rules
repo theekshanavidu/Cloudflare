@@ -47,7 +47,15 @@ service cloud.firestore {
     // ================= USERS =================
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuthenticated() && (
+        isAdmin() || (
+          request.auth.uid == userId &&
+          (!('role' in request.resource.data) || request.resource.data.role == 'student') &&
+          (!('isModerator' in request.resource.data) || request.resource.data.isModerator == false) &&
+          (!('canPostLectureHall' in request.resource.data) || request.resource.data.canPostLectureHall == false) &&
+          (!('isLectureHallEditor' in request.resource.data) || request.resource.data.isLectureHallEditor == false)
+        )
+      );
       // Users can only update their own profile, and cannot grant themselves moderator/editor privileges
       allow update: if isAuthenticated() && (
         isAdmin() || (
