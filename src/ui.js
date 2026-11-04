@@ -2528,6 +2528,16 @@ export async function openLessonPage(subject, type, day, user) {
   const canEdit = await checkCanEditLecture(user, subject);
 
   let headingText = `Day ${day} Content`;
+  try {
+    const lDocId = currentYear === '2026' ? `${subject}_${type}_${day}` : `${subject}_${type}_${day}_${currentYear}`;
+    const lSnap = await getDoc(doc(db, "lessons", lDocId));
+    if (lSnap.exists() && lSnap.data().title) {
+      const sTitle = lSnap.data().title.trim();
+      if (sTitle && !/^Day\s+\d+\s+Lesson$/i.test(sTitle) && sTitle !== 'Upcoming Lesson') {
+        headingText = `${sTitle} (Day ${day})`;
+      }
+    }
+  } catch (e) {}
   if (subject === 'chemistry' && type === 'midnight-video') {
     headingText = 'Midnight Session Videos';
   } else if (subject === 'vikum-maths' && type === 'video') {
@@ -3519,10 +3529,13 @@ export async function renderLessons(subject, type, navigate, user) {
     } else if (type === 'reverse-class' || type === 'reverse') {
       defaultTitle = `Reverse Class Day ${day}`;
     } else {
-      defaultTitle = `Day ${day} Lesson`;
+      defaultTitle = `Upcoming Lesson`;
     }
 
-    const title = lessonMap[day] || defaultTitle;
+    let title = lessonMap[day];
+    if (!title || /^Day\s+\d+\s+Lesson$/i.test(title.trim())) {
+      title = defaultTitle;
+    }
     const useBigCard = isRapid || type === 'final-revise';
     const card = document.createElement('div');
     
@@ -3538,7 +3551,7 @@ export async function renderLessons(subject, type, navigate, user) {
         `;
     } else {
         card.className = "smart-card p-4 flex justify-between items-center group cursor-pointer hover:bg-[var(--glass-border)]";
-        card.innerHTML = `<div class="flex items-center gap-4" onclick="navigateTo('/recording/${subject}/${type}/lesson${day}')"><div class="w-10 h-10 rounded bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold">${day}</div><span class="font-medium text-[var(--text-primary)]">${title}</span></div>`;
+        card.innerHTML = `<div class="flex items-center gap-4" onclick="navigateTo('/recording/${subject}/${type}/lesson${day}')"><div class="w-10 h-10 rounded bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold">${day}</div><span class="font-medium ${title === 'Upcoming Lesson' ? 'text-[var(--text-secondary)] opacity-90' : 'text-[var(--text-primary)]'}">${title}</span></div>`;
     }
 
     if (canEdit) {
@@ -3555,7 +3568,7 @@ export async function renderLessons(subject, type, navigate, user) {
       
       btn.onclick = (e) => {
         e.stopPropagation();
-        const newT = prompt("Rename Lesson:", title);
+        const newT = prompt("Rename Lesson:", (title === 'Upcoming Lesson' || /^Day\s+\d+\s+Lesson$/i.test(title)) ? '' : title);
         if (newT) {
           const docId = currentYear === '2026' ? `${subject}_${type}_${day}` : `${subject}_${type}_${day}_${currentYear}`;
           setDoc(doc(db, "lessons", docId), { 
