@@ -2509,7 +2509,7 @@ export async function openLessonPage(subject, type, day, user) {
       if (window.navigateTo) window.navigateTo('/recording/chemistry');
       return;
     }
-    if (subject === 'vikum-maths' && type !== 'revision') {
+    if (subject === 'vikum-maths' && type !== 'revision' && type !== 'paper' && type !== 'paper-discussion' && type !== 'paper-pdf') {
       if (window.navigateTo) window.navigateTo('/recording/vikum-maths');
       return;
     }
@@ -3113,10 +3113,14 @@ export function renderType(subject, navigate) {
                 <h2 class="text-4xl font-bold text-[var(--text-primary)] mb-2 uppercase tracking-widest">Combine Maths</h2>
                 <p class="text-sm text-[var(--text-secondary)]">Vikum Harshana • <span class="font-bold text-indigo-400">2027 A/L</span></p>
             </div>
-            <div class="grid grid-cols-1 max-w-xs mx-auto gap-4 mt-8">
-                <div onclick="navigateTo('/recording/vikum-maths/revision')" class="smart-card hover:border-indigo-500 cursor-pointer group p-6 md:p-10 text-center">
+            <div class="grid grid-cols-2 max-w-xl mx-auto gap-4 mt-8">
+                <div onclick="navigateTo('/recording/vikum-maths/revision')" class="smart-card hover:border-indigo-500 cursor-pointer group p-6 md:p-8 text-center transition-all duration-300 transform hover:-translate-y-1">
                     <div class="text-4xl md:text-6xl mb-3 md:mb-4 group-hover:scale-110 transition-transform">🔄</div>
                     <h3 class="text-lg md:text-2xl font-bold text-[var(--text-primary)]">Revision</h3>
+                </div>
+                <div onclick="navigateTo('/recording/vikum-maths/paper')" class="smart-card hover:border-indigo-500 cursor-pointer group p-6 md:p-8 text-center transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="text-4xl md:text-6xl mb-3 md:mb-4 group-hover:scale-110 transition-transform">📝</div>
+                    <h3 class="text-lg md:text-2xl font-bold text-[var(--text-primary)]">Paper</h3>
                 </div>
             </div>
         </div>
@@ -3317,7 +3321,7 @@ export async function renderLessons(subject, type, navigate, user) {
       navigate('/recording/chemistry');
       return;
     }
-    if (subject === 'vikum-maths' && type !== 'revision') {
+    if (subject === 'vikum-maths' && type !== 'revision' && type !== 'paper' && type !== 'paper-discussion' && type !== 'paper-pdf') {
       navigate('/recording/vikum-maths');
       return;
     }
@@ -3329,6 +3333,21 @@ export async function renderLessons(subject, type, navigate, user) {
       navigate('/recording/com-maths-manoj');
       return;
     }
+  }
+
+  if (subject === 'vikum-maths' && type === 'paper') {
+    renderVikumPaperCategories(navigate, currentYear);
+    return;
+  }
+
+  if (subject === 'vikum-maths' && type === 'paper-discussion') {
+    await renderVikumPaperDiscussion(navigate, user, currentYear);
+    return;
+  }
+
+  if (subject === 'vikum-maths' && type === 'paper-pdf') {
+    await renderVikumPaperPdf(navigate, user, currentYear);
+    return;
   }
 
   if (subject === 'vikum-maths' && type === 'supportive') {
@@ -4351,7 +4370,7 @@ export async function renderTuteSubject(subjectId, navigateTo, currentUser) {
                                                 </a>
 
                                                 <!-- Download PDF -->
-                                                <button type="button" onclick="window.downloadPdfFile('${fileUrl}', '${safeFileName.replace(/'/g, "\\'")}')" class="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-emerald-600/80 hover:bg-emerald-600 text-white transition-all text-xs font-semibold inline-flex items-center gap-1.5 shadow-sm cursor-pointer" title="Download to device">
+                  <button type="button" onclick="window.downloadPdfFile('${fileUrl}', '${safeFileName}')" class="px-3.5 py-2 rounded-xl bg-emerald-600/80 hover:bg-emerald-600 text-white transition-all text-xs font-semibold inline-flex items-center gap-1.5 shadow-sm cursor-pointer" title="Download to device">
                                                     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                                                     <span class="hidden sm:inline">Download</span>
                                                 </button>
@@ -8330,4 +8349,557 @@ export async function renderCommunityChat(user, navigateTo) {
 
 
 
+
+
+
+export function renderVikumPaperCategories(navigate, currentYear) {
+  const appContainer = document.getElementById('app-container');
+  if (!appContainer) return;
+
+  appContainer.innerHTML = `
+    <div class="max-w-4xl mx-auto pt-8 pb-16 px-4">
+        <div class="flex items-center justify-between mb-8 flex-wrap gap-3">
+            <button onclick="navigateTo('/recording/vikum-maths')" class="btn-ghost flex items-center gap-2 text-sm border border-[var(--glass-border)] hover:bg-[var(--glass-border)]">
+                <span>←</span> Back to Types
+            </button>
+            ${renderLectureYearSwitcher(currentYear, 'normal')}
+        </div>
+        <div class="text-center mb-10">
+            <h2 class="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-2 uppercase tracking-widest">Combine Maths / Paper</h2>
+            <p class="text-sm text-[var(--text-secondary)]">Vikum Harshana • <span class="font-bold text-indigo-400">${currentYear} A/L</span></p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
+            <!-- Card 1: Discussion -->
+            <div onclick="navigateTo('/recording/vikum-maths/paper-discussion')" class="smart-card hover:border-indigo-500 cursor-pointer group p-6 sm:p-10 text-center transition-all duration-300 transform hover:-translate-y-1">
+                <div class="w-20 h-20 mx-auto rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-4xl mb-4 group-hover:scale-110 group-hover:bg-indigo-500/20 transition-all">
+                    💬
+                </div>
+                <h3 class="text-xl sm:text-2xl font-bold text-[var(--text-primary)] group-hover:text-indigo-400 transition-colors">Discussion</h3>
+                <p class="text-xs sm:text-sm text-[var(--text-secondary)] mt-2">Paper discussion videos, recordings and reference links</p>
+            </div>
+            <!-- Card 2: Paper Pdf -->
+            <div onclick="navigateTo('/recording/vikum-maths/paper-pdf')" class="smart-card hover:border-indigo-500 cursor-pointer group p-6 sm:p-10 text-center transition-all duration-300 transform hover:-translate-y-1">
+                <div class="w-20 h-20 mx-auto rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center text-4xl mb-4 group-hover:scale-110 group-hover:bg-rose-500/20 transition-all">
+                    📄
+                </div>
+                <h3 class="text-xl sm:text-2xl font-bold text-[var(--text-primary)] group-hover:text-rose-400 transition-colors">Paper Pdf</h3>
+                <p class="text-xs sm:text-sm text-[var(--text-secondary)] mt-2">Official paper PDF documents, schemes and worksheets</p>
+            </div>
+        </div>
+    </div>
+  `;
+}
+
+export async function renderVikumPaperDiscussion(navigate, user, currentYear) {
+  const appContainer = document.getElementById('app-container');
+  if (!appContainer) return;
+
+  const canEdit = await checkCanEditLecture(user, 'vikum-maths');
+
+  appContainer.innerHTML = `
+    <div class="max-w-5xl mx-auto pt-8 pb-16 px-4">
+        <div class="flex items-center justify-between mb-8 flex-wrap gap-3">
+            <button onclick="navigateTo('/recording/vikum-maths/paper')" class="btn-ghost flex items-center gap-2 text-sm border border-[var(--glass-border)] hover:bg-[var(--glass-border)]">
+                <span>←</span> Back to Paper Classes
+            </button>
+            <div class="flex items-center gap-2">
+                ${canEdit ? `
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                        <span>🛡️</span>
+                        <span>Editor Mode</span>
+                    </span>
+                ` : ''}
+                ${renderLectureYearSwitcher(currentYear, 'normal')}
+            </div>
+        </div>
+
+        <div class="mb-8">
+            <div class="flex items-center gap-2 mb-2 flex-wrap">
+                <span class="text-xs text-[var(--text-secondary)] font-medium">Combine Maths</span>
+                <span class="text-xs text-[var(--text-secondary)]">•</span>
+                <span class="text-xs text-[var(--text-secondary)] font-medium">Paper</span>
+                <span class="text-xs text-[var(--text-secondary)]">•</span>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">${currentYear} A/L</span>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] flex items-center gap-2.5">
+                <span>💬</span>
+                <span>Paper Discussion</span>
+            </h2>
+            <p class="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">Watch and review all official paper discussions conducted by Vikum Harshana sir.</p>
+        </div>
+
+        ${canEdit ? `
+            <div class="smart-card border-dashed border-2 border-indigo-500/30 bg-indigo-950/10 mb-8 p-5 rounded-2xl">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                        <span>Add New Paper Discussion</span>
+                    </h3>
+                    <span class="text-[11px] font-semibold text-[var(--text-secondary)]">Target: ${currentYear} A/L</span>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input id="vikum-disc-text" placeholder="Discussion Title (e.g. Paper 01 Discussion - Pure Maths)" class="smart-input flex-1">
+                    <input id="vikum-disc-link" placeholder="Share Link URL (https://...)" class="smart-input flex-1">
+                    <button id="vikum-disc-add-btn" class="btn-primary whitespace-nowrap px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow-lg shadow-indigo-600/30">
+                        Add Discussion
+                    </button>
+                </div>
+            </div>
+        ` : ''}
+
+        <div id="vikum-disc-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+            <div class="col-span-full py-12 flex justify-center"><div class="animate-spin h-8 w-8 border-4 border-indigo-500 rounded-full border-t-transparent"></div></div>
+        </div>
+    </div>
+  `;
+
+  const listEl = document.getElementById('vikum-disc-list');
+
+  const loadDiscussions = async () => {
+    try {
+      const q = query(collection(db, "lessonContents"), where("lessonId", "==", "vikum-maths_paper_discussion"), orderBy("order", "asc"));
+      const snap = await getDocs(q);
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.year === currentYear || d.batch === currentYear);
+
+      if (docs.length === 0) {
+        listEl.innerHTML = `
+          <div class="col-span-full p-8 text-center text-[var(--text-secondary)] italic border border-[var(--glass-border)] rounded-2xl bg-[var(--bg-secondary)]/40">
+            No paper discussion links uploaded for ${currentYear} A/L yet.
+          </div>
+        `;
+        return;
+      }
+
+      listEl.innerHTML = docs.map((item, index) => {
+        const safeText = escapeHTML(item.text || 'Paper Discussion');
+        const safeLink = sanitizeUrl(item.link || '#');
+        const isFirst = index === 0;
+        const isLast = index === docs.length - 1;
+
+        return `
+          <div class="smart-card relative group p-4 sm:p-5 flex flex-col justify-between hover:border-indigo-500/40 transition-all shadow-md">
+              <div class="flex items-start gap-3.5 mb-4">
+                  <div class="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl shrink-0">
+                      ▶
+                  </div>
+                  <div class="min-w-0 flex-1">
+                      <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-400 block mb-0.5">Discussion</span>
+                      <h3 class="text-sm sm:text-base font-bold text-[var(--text-primary)] leading-snug line-clamp-2">${safeText}</h3>
+                      <p class="text-[11px] text-[var(--text-secondary)] mt-1">Official Video / Live Recording Link</p>
+                  </div>
+              </div>
+
+              <div class="flex items-center justify-between gap-2 pt-2 border-t border-[var(--glass-border)]">
+                  <a href="${safeLink}" target="_blank" rel="noopener noreferrer" class="btn-primary flex-1 py-2 px-3 text-xs font-bold inline-flex items-center justify-center gap-1.5 rounded-xl shadow-md cursor-pointer">
+                      <span>Watch Discussion</span>
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+                  </a>
+                  ${canEdit ? `
+                      <div class="flex items-center gap-1 shrink-0">
+                          ${!isFirst ? `<button onclick="window.moveVikumPaperItem('${item.id}', ${index}, 'up', 'vikum-maths_paper_discussion', '${currentYear}')" class="p-2 text-xs rounded-lg hover:bg-[var(--glass-border)] text-blue-400 cursor-pointer" title="Move Up">⬆️</button>` : ''}
+                          ${!isLast ? `<button onclick="window.moveVikumPaperItem('${item.id}', ${index}, 'down', 'vikum-maths_paper_discussion', '${currentYear}')" class="p-2 text-xs rounded-lg hover:bg-[var(--glass-border)] text-blue-400 cursor-pointer" title="Move Down">⬇️</button>` : ''}
+                          <button onclick="window.editVikumPaperItem('${item.id}', 'vikum-maths_paper_discussion', '${currentYear}')" class="p-2 text-xs rounded-lg hover:bg-[var(--glass-border)] text-yellow-400 cursor-pointer" title="Edit">✏️</button>
+                          <button onclick="window.deleteVikumPaperItem('${item.id}', 'vikum-maths_paper_discussion', '${currentYear}')" class="p-2 text-xs rounded-lg hover:bg-[var(--glass-border)] text-rose-400 cursor-pointer" title="Delete">🗑️</button>
+                      </div>
+                  ` : ''}
+              </div>
+          </div>
+        `;
+      }).join('');
+    } catch (e) {
+      console.error("Error loading discussions:", e);
+      listEl.innerHTML = `<div class="col-span-full p-4 text-center text-rose-400 text-xs">Error loading discussions: ${escapeHTML(e.message)}</div>`;
+    }
+  };
+
+  if (canEdit) {
+    const addBtn = document.getElementById('vikum-disc-add-btn');
+    addBtn.onclick = async () => {
+      const textInput = document.getElementById('vikum-disc-text');
+      const linkInput = document.getElementById('vikum-disc-link');
+      const text = sanitizeInput(textInput.value.trim());
+      const link = sanitizeUrl(linkInput.value.trim());
+
+      if (!text || text.length > 200) {
+        alert("Please enter a valid discussion title (max 200 characters).");
+        return;
+      }
+      if (!link || link === '#' || !/^https?:\/\//i.test(link)) {
+        alert("Please enter a valid HTTP/HTTPS link URL.");
+        return;
+      }
+
+      addBtn.disabled = true;
+      try {
+        const qCount = query(collection(db, "lessonContents"), where("lessonId", "==", "vikum-maths_paper_discussion"));
+        const snapCount = await getDocs(qCount);
+        const count = snapCount.docs.filter(d => d.data().year === currentYear || d.data().batch === currentYear).length;
+
+        await addDoc(collection(db, "lessonContents"), {
+          lessonId: 'vikum-maths_paper_discussion',
+          text,
+          link,
+          year: currentYear,
+          batch: currentYear,
+          subject: 'vikum-maths',
+          type: 'paper-discussion',
+          order: count + 1,
+          createdAt: Date.now(),
+          createdBy: user ? user.uid : 'admin'
+        });
+
+        textInput.value = '';
+        linkInput.value = '';
+        await loadDiscussions();
+      } catch (err) {
+        console.error("Error adding discussion:", err);
+        alert("Failed to add discussion: " + err.message);
+      } finally {
+        addBtn.disabled = false;
+      }
+    };
+  }
+
+  await loadDiscussions();
+}
+
+export async function renderVikumPaperPdf(navigate, user, currentYear) {
+  const appContainer = document.getElementById('app-container');
+  if (!appContainer) return;
+
+  const canEdit = await checkCanEditLecture(user, 'vikum-maths');
+
+  appContainer.innerHTML = `
+    <div class="max-w-5xl mx-auto pt-8 pb-16 px-4">
+        <div class="flex items-center justify-between mb-8 flex-wrap gap-3">
+            <button onclick="navigateTo('/recording/vikum-maths/paper')" class="btn-ghost flex items-center gap-2 text-sm border border-[var(--glass-border)] hover:bg-[var(--glass-border)]">
+                <span>←</span> Back to Paper Classes
+            </button>
+            <div class="flex items-center gap-2">
+                ${canEdit ? `
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                        <span>🛡️</span>
+                        <span>Editor Mode</span>
+                    </span>
+                ` : ''}
+                ${renderLectureYearSwitcher(currentYear, 'normal')}
+            </div>
+        </div>
+
+        <div class="mb-8">
+            <div class="flex items-center gap-2 mb-2 flex-wrap">
+                <span class="text-xs text-[var(--text-secondary)] font-medium">Combine Maths</span>
+                <span class="text-xs text-[var(--text-secondary)]">•</span>
+                <span class="text-xs text-[var(--text-secondary)] font-medium">Paper</span>
+                <span class="text-xs text-[var(--text-secondary)]">•</span>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">${currentYear} A/L</span>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] flex items-center gap-2.5">
+                <span>📄</span>
+                <span>Paper PDF Documents</span>
+            </h2>
+            <p class="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">Official question papers, marking schemes and answer worksheets. View online or download directly.</p>
+        </div>
+
+        ${canEdit ? `
+            <div class="smart-card border-dashed border-2 border-rose-500/30 bg-rose-950/10 mb-8 p-5 sm:p-6 rounded-2xl">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-rose-300 flex items-center gap-1.5">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                        <span>Upload Official Paper PDF</span>
+                    </h3>
+                    <span class="text-[11px] font-semibold text-[var(--text-secondary)]">Target: ${currentYear} A/L</span>
+                </div>
+                
+                <form id="vikum-pdf-form" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Paper Title / විස්තරය *</label>
+                        <input type="text" id="vikum-pdf-title-input" class="w-full px-3.5 py-2.5 rounded-xl bg-[var(--bg-root)] border border-[var(--glass-border)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-indigo-500" placeholder="e.g. Paper 01 - Full Question Paper & Scheme" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Choose PDF File *</label>
+                        <label for="vikum-pdf-file-picker" class="flex flex-col items-center justify-center p-5 rounded-2xl border-2 border-dashed border-[var(--glass-border)] hover:border-indigo-500 bg-[var(--bg-root)] cursor-pointer transition-colors group">
+                            <div class="w-10 h-10 rounded-xl bg-rose-500/10 group-hover:bg-rose-500/20 text-rose-400 flex items-center justify-center mb-1.5 transition-colors">
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                            </div>
+                            <p id="vikum-pdf-file-label" class="text-xs sm:text-sm font-semibold text-[var(--text-primary)] text-center">Click or drag & drop PDF here</p>
+                            <p id="vikum-pdf-size-label" class="text-[10px] text-[var(--text-secondary)] mt-0.5">PDF documents only • Max: 25MB</p>
+                        </label>
+                        <input type="file" id="vikum-pdf-file-picker" accept="application/pdf,.pdf" class="hidden" required>
+                    </div>
+
+                    <div id="vikum-pdf-upload-status" class="hidden text-xs py-2 px-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 items-center gap-2">
+                        <span class="animate-spin">⏳</span>
+                        <span id="vikum-pdf-status-text">Uploading to Cloudflare R2...</span>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2 pt-1">
+                        <button type="submit" id="vikum-pdf-submit-btn" class="btn-primary px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-lg shadow-indigo-600/30 cursor-pointer">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                            <span>Upload & Publish PDF</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        ` : ''}
+
+        <div id="vikum-pdf-list" class="space-y-3.5 mb-8">
+            <div class="py-12 flex justify-center"><div class="animate-spin h-8 w-8 border-4 border-indigo-500 rounded-full border-t-transparent"></div></div>
+        </div>
+    </div>
+  `;
+
+  const listEl = document.getElementById('vikum-pdf-list');
+
+  const loadPdfs = async () => {
+    try {
+      const q = query(collection(db, "lessonContents"), where("lessonId", "==", "vikum-maths_paper_pdf"), orderBy("order", "asc"));
+      const snap = await getDocs(q);
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.year === currentYear || d.batch === currentYear);
+
+      if (docs.length === 0) {
+        listEl.innerHTML = `
+          <div class="p-8 text-center text-[var(--text-secondary)] italic border border-[var(--glass-border)] rounded-2xl bg-[var(--bg-secondary)]/40">
+            No paper PDF documents uploaded for ${currentYear} A/L yet.
+          </div>
+        `;
+        return;
+      }
+
+      listEl.innerHTML = docs.map((docItem, index) => {
+        const safeTitle = escapeHTML(docItem.text || 'Paper PDF Document');
+        const safeFileName = escapeHTML(docItem.fileName || 'Paper.pdf');
+        const formattedSize = docItem.fileSize ? formatFileSize(docItem.fileSize) : 'PDF Document';
+        const fileUrl = sanitizeUrl(docItem.link || '#');
+        const isFirst = index === 0;
+        const isLast = index === docs.length - 1;
+
+        return `
+          <div class="smart-card p-4 sm:p-5 rounded-2xl border border-[var(--glass-border)] hover:border-rose-500/40 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+              <div class="flex items-center gap-3.5 min-w-0 flex-1">
+                  <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-500 to-red-700 flex flex-col items-center justify-center text-white shadow-md shrink-0">
+                      <span class="text-[7.5px] font-black tracking-wider uppercase leading-none">PDF</span>
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" class="mt-0.5">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                          <polyline points="14 2 14 8 20 8"></polyline>
+                      </svg>
+                  </div>
+                  <div class="min-w-0 flex-1">
+                      <h4 class="text-sm sm:text-base font-bold text-[var(--text-primary)] truncate" title="${safeTitle}">${safeTitle}</h4>
+                      <div class="flex items-center gap-2 text-[10px] sm:text-xs text-[var(--text-secondary)] mt-0.5 flex-wrap">
+                          <span class="font-semibold text-rose-300">${formattedSize}</span>
+                          <span class="opacity-40">•</span>
+                          <span class="truncate max-w-[160px] sm:max-w-xs">${safeFileName}</span>
+                          ${docItem.createdAt ? `<span class="opacity-40">•</span><span>${new Date(docItem.createdAt).toLocaleDateString()}</span>` : ''}
+                      </div>
+                  </div>
+              </div>
+
+              <!-- Action Buttons: View, Download & (Admins only) Manage -->
+              <div class="flex items-center gap-2 shrink-0 justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--glass-border)]">
+                  <!-- View PDF -->
+                  <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="px-3 py-2 rounded-xl bg-[var(--bg-secondary)] hover:bg-indigo-600/20 text-indigo-300 hover:text-white transition-all text-xs font-semibold inline-flex items-center gap-1.5 border border-[var(--glass-border)] cursor-pointer" title="View PDF in new tab">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+                      <span>View</span>
+                  </a>
+
+                  <!-- Download PDF -->
+                  <button type="button" onclick="window.downloadPdfFile('${fileUrl}', '${safeFileName}')" class="px-3.5 py-2 rounded-xl bg-emerald-600/80 hover:bg-emerald-600 text-white transition-all text-xs font-semibold inline-flex items-center gap-1.5 shadow-sm cursor-pointer" title="Download to device">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                      <span>Download</span>
+                  </button>
+
+                  <!-- Admin Management Actions -->
+                  ${canEdit ? `
+                      <div class="flex items-center gap-1 pl-1 border-l border-[var(--glass-border)]">
+                          ${!isFirst ? `<button onclick="window.moveVikumPaperItem('${docItem.id}', ${index}, 'up', 'vikum-maths_paper_pdf', '${currentYear}')" class="p-2 text-xs rounded-lg hover:bg-[var(--glass-border)] text-blue-400 cursor-pointer" title="Move Up">⬆️</button>` : ''}
+                          ${!isLast ? `<button onclick="window.moveVikumPaperItem('${docItem.id}', ${index}, 'down', 'vikum-maths_paper_pdf', '${currentYear}')" class="p-2 text-xs rounded-lg hover:bg-[var(--glass-border)] text-blue-400 cursor-pointer" title="Move Down">⬇️</button>` : ''}
+                          <button onclick="window.editVikumPaperItem('${docItem.id}', 'vikum-maths_paper_pdf', '${currentYear}')" class="p-2 text-xs rounded-lg hover:bg-[var(--glass-border)] text-yellow-400 cursor-pointer" title="Rename Title">✏️</button>
+                          <button onclick="window.deleteVikumPaperItem('${docItem.id}', 'vikum-maths_paper_pdf', '${currentYear}')" class="p-2 text-xs rounded-lg hover:bg-[var(--glass-border)] text-rose-400 cursor-pointer" title="Delete">🗑️</button>
+                      </div>
+                  ` : ''}
+              </div>
+          </div>
+        `;
+      }).join('');
+    } catch (e) {
+      console.error("Error loading paper PDFs:", e);
+      listEl.innerHTML = `<div class="p-4 text-center text-rose-400 text-xs">Error loading paper PDFs: ${escapeHTML(e.message)}</div>`;
+    }
+  };
+
+  if (canEdit) {
+    const filePicker = document.getElementById('vikum-pdf-file-picker');
+    const labelFile = document.getElementById('vikum-pdf-file-label');
+    const labelSize = document.getElementById('vikum-pdf-size-label');
+
+    filePicker.onchange = () => {
+      const file = filePicker.files && filePicker.files[0];
+      if (file) {
+        if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+          alert("Please select a PDF document (.pdf).\nකරුණාකර PDF ගොනුවක් පමණක් තෝරන්න.");
+          filePicker.value = '';
+          return;
+        }
+        if (file.size > 25 * 1024 * 1024) {
+          alert("File exceeds maximum allowed size of 25MB.\nගොනුවේ ප්‍රමාණය 25MB ඉක්මවා ඇත.");
+          filePicker.value = '';
+          return;
+        }
+        labelFile.textContent = file.name;
+        labelFile.className = 'text-xs sm:text-sm font-bold text-rose-400 text-center truncate max-w-xs';
+        labelSize.textContent = formatFileSize(file.size);
+      }
+    };
+
+    const form = document.getElementById('vikum-pdf-form');
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const file = filePicker.files && filePicker.files[0];
+      const titleInput = document.getElementById('vikum-pdf-title-input');
+      const title = sanitizeInput(titleInput.value.trim());
+      const statusBox = document.getElementById('vikum-pdf-upload-status');
+      const statusText = document.getElementById('vikum-pdf-status-text');
+      const submitBtn = document.getElementById('vikum-pdf-submit-btn');
+
+      if (!title) return alert("Please enter a title for the paper.");
+      if (!file) return alert("Please select a PDF file to upload.");
+
+      submitBtn.disabled = true;
+      statusBox.classList.remove('hidden');
+      statusBox.classList.add('flex');
+      statusText.textContent = "Uploading PDF document to Cloudflare R2...";
+
+      try {
+        const cleanFileName = getCleanFileName(file.name, 'Paper.pdf');
+        const storageKey = `vikum_papers/pdf/${currentYear}/${Date.now()}_${cleanFileName.replace(/[^a-zA-Z0-9_\-\.]/g, '_')}`;
+
+        const mediaUrl = await uploadMediaFile(file, storageKey, 'application/pdf', cleanFileName);
+
+        statusText.textContent = "Saving paper information...";
+
+        const qCount = query(collection(db, "lessonContents"), where("lessonId", "==", "vikum-maths_paper_pdf"));
+        const snapCount = await getDocs(qCount);
+        const count = snapCount.docs.filter(d => d.data().year === currentYear || d.data().batch === currentYear).length;
+
+        await addDoc(collection(db, "lessonContents"), {
+          lessonId: 'vikum-maths_paper_pdf',
+          text: title,
+          link: sanitizeUrl(mediaUrl),
+          fileName: cleanFileName,
+          fileSize: file.size,
+          fileType: 'application/pdf',
+          isPdf: true,
+          year: currentYear,
+          batch: currentYear,
+          subject: 'vikum-maths',
+          type: 'paper-pdf',
+          order: count + 1,
+          createdAt: Date.now(),
+          createdBy: user ? user.uid : 'admin'
+        });
+
+        titleInput.value = '';
+        filePicker.value = '';
+        labelFile.textContent = 'Click or drag & drop PDF here';
+        labelFile.className = 'text-xs sm:text-sm font-semibold text-[var(--text-primary)] text-center';
+        labelSize.textContent = 'PDF documents only • Max: 25MB';
+        statusBox.classList.add('hidden');
+        statusBox.classList.remove('flex');
+        alert("Paper PDF uploaded successfully! 📄");
+        await loadPdfs();
+      } catch (err) {
+        console.error("Error uploading paper PDF:", err);
+        alert("Failed to upload paper PDF: " + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        statusBox.classList.add('hidden');
+      }
+    };
+  }
+
+  await loadPdfs();
+}
+
+// Global window actions for managing Vikum papers (Delete, Edit, Reorder)
+window.deleteVikumPaperItem = async (itemId, lessonId, currentYear) => {
+  if (!confirm("Are you sure you want to delete this item? / මෙය මකා දැමීමට අවශ්‍ය බව තහවුරු කරන්නද?")) return;
+  try {
+    await deleteDoc(doc(db, "lessonContents", itemId));
+    if (lessonId === 'vikum-maths_paper_discussion') {
+      await renderVikumPaperDiscussion(window.navigateTo, auth.currentUser, currentYear);
+    } else {
+      await renderVikumPaperPdf(window.navigateTo, auth.currentUser, currentYear);
+    }
+  } catch (e) {
+    console.error("Error deleting paper item:", e);
+    alert("Delete failed: " + e.message);
+  }
+};
+
+window.editVikumPaperItem = async (itemId, lessonId, currentYear) => {
+  try {
+    const docSnap = await getDoc(doc(db, "lessonContents", itemId));
+    if (!docSnap.exists()) return alert("Item not found.");
+    const data = docSnap.data();
+
+    const newTitle = prompt("Update Title / නම සංස්කරණය කරන්න:", data.text || '');
+    if (newTitle === null) return;
+    const cleanTitle = sanitizeInput(newTitle.trim());
+    if (!cleanTitle) return alert("Title cannot be empty.");
+
+    let updatePayload = { text: cleanTitle, updatedAt: Date.now() };
+
+    if (lessonId === 'vikum-maths_paper_discussion') {
+      const newLink = prompt("Update Link URL / Link එක සංස්කරණය කරන්න:", data.link || '');
+      if (newLink === null) return;
+      const cleanLink = sanitizeUrl(newLink.trim());
+      if (!cleanLink || cleanLink === '#' || !/^https?:\/\//i.test(cleanLink)) {
+        return alert("Invalid URL. Must start with http:// or https://");
+      }
+      updatePayload.link = cleanLink;
+    }
+
+    await updateDoc(doc(db, "lessonContents", itemId), updatePayload);
+    if (lessonId === 'vikum-maths_paper_discussion') {
+      await renderVikumPaperDiscussion(window.navigateTo, auth.currentUser, currentYear);
+    } else {
+      await renderVikumPaperPdf(window.navigateTo, auth.currentUser, currentYear);
+    }
+  } catch (e) {
+    console.error("Error updating paper item:", e);
+    alert("Update failed: " + e.message);
+  }
+};
+
+window.moveVikumPaperItem = async (itemId, currentIndex, direction, lessonId, currentYear) => {
+  try {
+    const q = query(collection(db, "lessonContents"), where("lessonId", "==", lessonId), orderBy("order", "asc"));
+    const snap = await getDocs(q);
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(d => d.year === currentYear || d.batch === currentYear);
+
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= items.length) return;
+
+    const currentDoc = items[currentIndex];
+    const targetDoc = items[targetIndex];
+
+    const currentOrder = currentDoc.order !== undefined ? currentDoc.order : currentIndex + 1;
+    const targetOrder = targetDoc.order !== undefined ? targetDoc.order : targetIndex + 1;
+
+    const batch = writeBatch(db);
+    batch.update(doc(db, "lessonContents", currentDoc.id), { order: targetOrder });
+    batch.update(doc(db, "lessonContents", targetDoc.id), { order: currentOrder });
+    await batch.commit();
+
+    if (lessonId === 'vikum-maths_paper_discussion') {
+      await renderVikumPaperDiscussion(window.navigateTo, auth.currentUser, currentYear);
+    } else {
+      await renderVikumPaperPdf(window.navigateTo, auth.currentUser, currentYear);
+    }
+  } catch (e) {
+    console.error("Error reordering paper items:", e);
+  }
+};
 

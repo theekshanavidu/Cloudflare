@@ -236,8 +236,13 @@ async function router() {
             }
             const parts = path.split('/');
             const subject = parts[2];
-            const type = parts[3];
-            const lesson = parts[4];
+            let type = parts[3];
+            let lesson = parts[4];
+
+            if (subject === 'vikum-maths' && type === 'paper' && (lesson === 'discussion' || lesson === 'pdf')) {
+                type = `paper-${lesson}`;
+                lesson = undefined;
+            }
 
             if (subject && type && lesson) {
                 const day = lesson.replace('lesson', '');
