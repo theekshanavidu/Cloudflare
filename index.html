@@ -63,6 +63,17 @@
     <link rel="stylesheet" href="style.css">
 
     <!-- External Libraries (Deferred so HTML parsing isn't blocked, jsPDF loaded dynamically on demand) -->
+        <!-- Tailwind CSS with Console Warning Suppression -->
+    <script>
+      (function() {
+        const _warn = console.warn;
+        console.warn = function(...args) {
+          if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
+          _warn.apply(console, args);
+        };
+      })();
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.browser.min.js" defer></script>
 </head>
